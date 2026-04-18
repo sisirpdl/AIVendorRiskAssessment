@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as BuyerRouteImport } from './routes/buyer'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SellerIndexRouteImport } from './routes/seller.index'
+import { Route as ShareTokenRouteImport } from './routes/share.$token'
 import { Route as SellerUploadRouteImport } from './routes/seller.upload'
 import { Route as SellerSettingsRouteImport } from './routes/seller.settings'
 import { Route as SellerServicesRouteImport } from './routes/seller.services'
@@ -35,6 +36,11 @@ const IndexRoute = IndexRouteImport.update({
 const SellerIndexRoute = SellerIndexRouteImport.update({
   id: '/seller/',
   path: '/seller/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShareTokenRoute = ShareTokenRouteImport.update({
+  id: '/share/$token',
+  path: '/share/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SellerUploadRoute = SellerUploadRouteImport.update({
@@ -92,6 +98,7 @@ export interface FileRoutesByFullPath {
   '/seller/services': typeof SellerServicesRoute
   '/seller/settings': typeof SellerSettingsRoute
   '/seller/upload': typeof SellerUploadRoute
+  '/share/$token': typeof ShareTokenRoute
   '/seller/': typeof SellerIndexRoute
   '/buyer/assess/$vendorId': typeof BuyerAssessVendorIdRoute
   '/seller/review/$docId': typeof SellerReviewDocIdRoute
@@ -106,6 +113,7 @@ export interface FileRoutesByTo {
   '/seller/services': typeof SellerServicesRoute
   '/seller/settings': typeof SellerSettingsRoute
   '/seller/upload': typeof SellerUploadRoute
+  '/share/$token': typeof ShareTokenRoute
   '/seller': typeof SellerIndexRoute
   '/buyer/assess/$vendorId': typeof BuyerAssessVendorIdRoute
   '/seller/review/$docId': typeof SellerReviewDocIdRoute
@@ -121,6 +129,7 @@ export interface FileRoutesById {
   '/seller/services': typeof SellerServicesRoute
   '/seller/settings': typeof SellerSettingsRoute
   '/seller/upload': typeof SellerUploadRoute
+  '/share/$token': typeof ShareTokenRoute
   '/seller/': typeof SellerIndexRoute
   '/buyer_/assess/$vendorId': typeof BuyerAssessVendorIdRoute
   '/seller/review/$docId': typeof SellerReviewDocIdRoute
@@ -137,6 +146,7 @@ export interface FileRouteTypes {
     | '/seller/services'
     | '/seller/settings'
     | '/seller/upload'
+    | '/share/$token'
     | '/seller/'
     | '/buyer/assess/$vendorId'
     | '/seller/review/$docId'
@@ -151,6 +161,7 @@ export interface FileRouteTypes {
     | '/seller/services'
     | '/seller/settings'
     | '/seller/upload'
+    | '/share/$token'
     | '/seller'
     | '/buyer/assess/$vendorId'
     | '/seller/review/$docId'
@@ -165,6 +176,7 @@ export interface FileRouteTypes {
     | '/seller/services'
     | '/seller/settings'
     | '/seller/upload'
+    | '/share/$token'
     | '/seller/'
     | '/buyer_/assess/$vendorId'
     | '/seller/review/$docId'
@@ -178,6 +190,7 @@ export interface RootRouteChildren {
   SellerServicesRoute: typeof SellerServicesRoute
   SellerSettingsRoute: typeof SellerSettingsRoute
   SellerUploadRoute: typeof SellerUploadRoute
+  ShareTokenRoute: typeof ShareTokenRoute
   SellerIndexRoute: typeof SellerIndexRoute
   BuyerAssessVendorIdRoute: typeof BuyerAssessVendorIdRoute
   SellerReviewDocIdRoute: typeof SellerReviewDocIdRoute
@@ -205,6 +218,13 @@ declare module '@tanstack/react-router' {
       path: '/seller'
       fullPath: '/seller/'
       preLoaderRoute: typeof SellerIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/share/$token': {
+      id: '/share/$token'
+      path: '/share/$token'
+      fullPath: '/share/$token'
+      preLoaderRoute: typeof ShareTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/seller/upload': {
@@ -292,6 +312,7 @@ const rootRouteChildren: RootRouteChildren = {
   SellerServicesRoute: SellerServicesRoute,
   SellerSettingsRoute: SellerSettingsRoute,
   SellerUploadRoute: SellerUploadRoute,
+  ShareTokenRoute: ShareTokenRoute,
   SellerIndexRoute: SellerIndexRoute,
   BuyerAssessVendorIdRoute: BuyerAssessVendorIdRoute,
   SellerReviewDocIdRoute: SellerReviewDocIdRoute,

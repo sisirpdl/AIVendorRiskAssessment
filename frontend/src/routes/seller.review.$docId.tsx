@@ -3,8 +3,16 @@ import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Loader2, X, CheckCircle2 } from "lucide-react";
 import { SellerShell } from "@/components/trustlens/SellerShell";
-import { AnswerCard } from "@/components/trustlens/AnswerCard";
+import { AnswerRow, type AnswerEditPatch } from "@/components/trustlens/AnswerRow";
 import { PDFPreview } from "@/components/trustlens/PDFPreview";
+import { CitationsPanel } from "@/components/trustlens/CitationsPanel";
+import {
+  ReviewFilters,
+  DEFAULT_REVIEW_FILTERS,
+  applyReviewFilters,
+  type ReviewFilterState,
+} from "@/components/trustlens/ReviewFilters";
+import { ReviewGenerateLinkDialog } from "@/components/trustlens/ReviewGenerateLinkDialog";
 import { useTenant } from "@/context/TenantContext";
 import { getDocument, getCachedAnswers, documentFileUrl } from "@/lib/api";
 import type { QueryAnswer, TrustDocument } from "@/lib/types";
@@ -34,10 +42,13 @@ function ReviewPage() {
   const [answers, setAnswers] = useState<QueryAnswer[] | null>(null);
   const [totalExpected, setTotalExpected] = useState<number | null>(null);
   const [precomputeStatus, setPrecomputeStatus] = useState<
-    "processing" | "answering" | "ready" | "failed" | null
+    "processing" | "answering" | "web_searching" | "ready" | "failed" | null
   >(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [filters, setFilters] = useState<ReviewFilterState>(DEFAULT_REVIEW_FILTERS);
+  const [edits, setEdits] = useState<Record<string, AnswerEditPatch>>({});
+  const [shareOpen, setShareOpen] = useState(false);
 
   useEffect(() => {
     setDoc(null);
@@ -46,6 +57,7 @@ function ReviewPage() {
     setPrecomputeStatus(null);
     setActiveId(null);
     setLoadError(null);
+    setEdits({});
 
     if (!activeTenant) return;
 
@@ -79,12 +91,34 @@ function ReviewPage() {
     };
   }, [docId, activeTenant]);
 
+  const mergedAnswers = useMemo<QueryAnswer[] | null>(() => {
+    if (!answers) return null;
+    return answers.map((a) => {
+      const patch = edits[a.question_id];
+      if (!patch) return a;
+      return {
+        ...a,
+        verdict: patch.verdict,
+        answer: patch.answer,
+        confidence: 1.0,
+        idk: false,
+        source: "manual",
+        evidence: [],
+        citations: [],
+        status: "verified",
+      } satisfies QueryAnswer;
+    });
+  }, [answers, edits]);
+
   const activeAnswer = useMemo(
-    () => answers?.find((a) => a.question_id === activeId) ?? null,
-    [answers, activeId],
+    () => mergedAnswers?.find((a) => a.question_id === activeId) ?? null,
+    [mergedAnswers, activeId],
   );
-  const hasEvidence = !!activeAnswer && !activeAnswer.idk && activeAnswer.evidence[0];
-  const splitOpen = !!hasEvidence;
+  const hasPdfEvidence =
+    !!activeAnswer && !activeAnswer.idk && activeAnswer.source === "pdf" && activeAnswer.evidence[0];
+  const hasWebEvidence =
+    !!activeAnswer && !activeAnswer.idk && activeAnswer.source === "web" && activeAnswer.citations.length > 0;
+  const splitOpen = hasPdfEvidence || hasWebEvidence;
 
   const pdfUrl = doc ? documentFileUrl(doc.id) : undefined;
 
@@ -111,32 +145,45 @@ function ReviewPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            {answers && precomputeStatus === "answering" && totalExpected ? (
+            {mergedAnswers && (precomputeStatus === "answering" || precomputeStatus === "web_searching") && totalExpected ? (
               <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
                 <Loader2 className="h-3 w-3 animate-spin text-signature" />
-                <span className="font-mono-num text-foreground">
-                  {answers.length}/{totalExpected}
-                </span>{" "}
-                grounding against PDF
+                {precomputeStatus === "web_searching" ? (
+                  <>
+                    <span className="font-mono-num text-foreground">
+                      {mergedAnswers.filter((a) => !a.idk).length}/{totalExpected}
+                    </span>{" "}
+                    resolved · searching web for gaps
+                  </>
+                ) : (
+                  <>
+                    <span className="font-mono-num text-foreground">
+                      {mergedAnswers.length}/{totalExpected}
+                    </span>{" "}
+                    grounding against PDF
+                  </>
+                )}
               </span>
-            ) : answers ? (
+            ) : mergedAnswers ? (
               <span className="text-xs text-muted-foreground">
                 <span className="font-mono-num text-foreground">
-                  {answers.filter((a) => !a.idk).length}
+                  {mergedAnswers.filter((a) => !a.idk).length}
                 </span>{" "}
                 answers ·{" "}
                 <span className="font-mono-num text-warning">
-                  {answers.filter((a) => a.idk).length}
+                  {mergedAnswers.filter((a) => a.idk).length}
                 </span>{" "}
                 unanswered
               </span>
             ) : null}
             <button
               type="button"
-              className="inline-flex items-center gap-2 rounded-lg bg-signature px-4 py-2 text-sm font-medium text-signature-foreground shadow-[0_0_24px_rgba(250,204,21,0.35)] transition-transform hover:-translate-y-0.5"
+              disabled={!doc || !mergedAnswers}
+              onClick={() => setShareOpen(true)}
+              className="inline-flex items-center gap-2 rounded-md bg-signature px-3.5 py-1.5 text-[12px] font-semibold tracking-wide text-signature-foreground transition-colors hover:bg-signature/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <CheckCircle2 className="h-4 w-4" />
-              Publish All Verified
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Review &amp; Generate Link
             </button>
           </div>
         </div>
@@ -145,60 +192,78 @@ function ReviewPage() {
           <motion.div
             animate={{ width: splitOpen ? "50%" : "100%" }}
             transition={{ type: "spring", stiffness: 200, damping: 25 }}
-            className="min-w-0 overflow-y-auto px-8 py-6"
+            className="flex min-w-0 flex-col overflow-hidden"
           >
-            {loadError ? (
-              <div className="rounded-xl border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger">
-                {loadError}
-              </div>
-            ) : !answers || (answers.length === 0 && precomputeStatus !== "ready") ? (
-              <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface/50 px-5 py-6 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-signature" />
-                  {totalExpected
-                    ? `Grounding ${totalExpected} questions against your PDF…`
-                    : "Preparing RAG pipeline…"}
+            {mergedAnswers && mergedAnswers.length > 0 ? (
+              <ReviewFilters state={filters} onChange={setFilters} answers={mergedAnswers} />
+            ) : null}
+
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {loadError ? (
+                <div className="m-5 rounded-md border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger">
+                  {loadError}
                 </div>
-                {totalExpected ? (
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-elevated">
-                    <motion.div
-                      className="h-full rounded-full bg-signature"
-                      animate={{ width: `${((answers?.length ?? 0) / totalExpected) * 100}%` }}
-                      transition={{ duration: 0.4 }}
-                    />
+              ) : !mergedAnswers || (mergedAnswers.length === 0 && precomputeStatus !== "ready") ? (
+                <div className="m-5 flex flex-col gap-3 rounded-md border border-border bg-surface/50 px-5 py-6 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-signature" />
+                    {precomputeStatus === "web_searching"
+                      ? "Searching the web for unanswered questions…"
+                      : totalExpected
+                        ? `Grounding ${totalExpected} questions against your PDF…`
+                        : "Preparing RAG pipeline…"}
                   </div>
-                ) : null}
-              </div>
-            ) : (
-              <ul className="space-y-3 pb-12">
-                {answers.map((a, i) => (
-                  <motion.li
-                    key={a.question_id}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: Math.min(i * 0.03, 0.4) }}
-                  >
-                    <AnswerCard
-                      answer={a}
-                      isActive={a.question_id === activeId}
-                      onClick={() => {
-                        if (a.idk) return;
-                        setActiveId(a.question_id === activeId ? null : a.question_id);
-                      }}
-                    />
-                  </motion.li>
-                ))}
-                <li className="pt-4 text-center text-xs text-muted-foreground">
-                  <Link to="/seller" className="hover:text-signature">
-                    ← Back to dashboard
-                  </Link>
-                </li>
-              </ul>
-            )}
+                  {totalExpected ? (
+                    <div className="h-1 w-full overflow-hidden rounded-full bg-surface-elevated">
+                      <motion.div
+                        className="h-full rounded-full bg-signature"
+                        animate={{ width: `${((mergedAnswers?.length ?? 0) / totalExpected) * 100}%` }}
+                        transition={{ duration: 0.4 }}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                (() => {
+                  const filtered = applyReviewFilters(mergedAnswers, filters);
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="m-5 rounded-md border border-dashed border-border bg-surface/40 px-4 py-10 text-center text-sm text-muted-foreground">
+                        No questions match the current filters.
+                      </div>
+                    );
+                  }
+                  return (
+                    <div>
+                      {filtered.map((a) => (
+                        <AnswerRow
+                          key={a.question_id}
+                          answer={a}
+                          isActive={a.question_id === activeId}
+                          editable
+                          onEditSave={(patch) =>
+                            setEdits((prev) => ({ ...prev, [a.question_id]: patch }))
+                          }
+                          onClick={() => {
+                            if (a.idk || a.source === "manual") return;
+                            setActiveId(a.question_id === activeId ? null : a.question_id);
+                          }}
+                        />
+                      ))}
+                      <div className="px-5 py-4 text-center text-xs text-muted-foreground">
+                        <Link to="/seller" className="hover:text-foreground">
+                          ← Back to dashboard
+                        </Link>
+                      </div>
+                    </div>
+                  );
+                })()
+              )}
+            </div>
           </motion.div>
 
           <AnimatePresence>
-            {splitOpen && activeAnswer && hasEvidence && (
+            {splitOpen && activeAnswer && (
               <motion.aside
                 key="evidence"
                 initial={{ x: "100%", opacity: 0 }}
@@ -211,7 +276,7 @@ function ReviewPage() {
                   <div className="flex items-center justify-between border-b border-border px-6 py-4">
                     <div>
                       <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-signature">
-                        Evidence
+                        {activeAnswer.source === "web" ? "Web Sources" : "Evidence"}
                       </div>
                       <div className="mt-0.5 line-clamp-1 text-sm font-medium">
                         {activeAnswer.question}
@@ -226,11 +291,18 @@ function ReviewPage() {
                     </button>
                   </div>
                   <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-                    <PDFPreview
-                      evidence={activeAnswer.evidence[0]}
-                      filename={doc?.filename}
-                      pdfUrl={pdfUrl}
-                    />
+                    {hasPdfEvidence ? (
+                      <PDFPreview
+                        evidence={activeAnswer.evidence[0]}
+                        filename={doc?.filename}
+                        pdfUrl={pdfUrl}
+                      />
+                    ) : hasWebEvidence ? (
+                      <CitationsPanel
+                        answer={activeAnswer.answer}
+                        citations={activeAnswer.citations}
+                      />
+                    ) : null}
                   </div>
                 </div>
               </motion.aside>
@@ -238,6 +310,15 @@ function ReviewPage() {
           </AnimatePresence>
         </div>
       </div>
+      {doc && mergedAnswers && (
+        <ReviewGenerateLinkDialog
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          doc={doc}
+          answers={mergedAnswers}
+          tenantId={activeTenant?.id ?? ""}
+        />
+      )}
     </SellerShell>
   );
 }

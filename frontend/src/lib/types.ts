@@ -18,15 +18,25 @@ export interface EvidenceChunk {
 }
 
 export type AnswerStatus = "pending_review" | "verified" | "published";
+export type Verdict = "YES" | "NO" | "N_A";
+export type AnswerSource = "pdf" | "web" | "manual";
+
+export interface Citation {
+  url: string;
+  title: string;
+}
 
 export interface QueryAnswer {
   question_id: string;
   question: string;
   domain: string;
+  verdict: Verdict;
   answer: string | null;
   confidence: number;
   idk: boolean;
+  source: AnswerSource;
   evidence: EvidenceChunk[];
+  citations: Citation[];
   status: AnswerStatus;
 }
 

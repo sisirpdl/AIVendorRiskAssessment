@@ -27,10 +27,13 @@ def get_cached_answers(document_id: str = Query(...), tenant_id: str = Query(...
                 "question_id": r.question_id,
                 "question": r.question_text,
                 "domain": r.domain,
+                "verdict": r.verdict,
                 "answer": r.answer,
                 "confidence": float(r.confidence),
                 "idk": bool(r.idk),
+                "source": r.source,
                 "evidence": json.loads(r.evidence_json or "[]"),
+                "citations": json.loads(r.citations_json or "[]"),
                 "status": "pending_review",
             }
             for r in rows

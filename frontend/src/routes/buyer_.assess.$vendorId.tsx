@@ -1,26 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  ArrowLeft,
-  Loader2,
-  ChevronDown,
-  Building2,
-  FileText,
-  X,
-  CheckCircle2,
-  AlertTriangle,
-  ShieldCheck,
-} from "lucide-react";
+import { ArrowLeft, Building2, FileText, Loader2, X } from "lucide-react";
 import { BuyerShell } from "@/components/trustlens/BuyerShell";
 import { ConfidenceRing } from "@/components/trustlens/ConfidenceRing";
-import { ConfidenceBar } from "@/components/trustlens/ConfidenceBar";
-import { IDKBadge } from "@/components/trustlens/IDKBadge";
+import { AnswerRow } from "@/components/trustlens/AnswerRow";
 import { PDFPreview } from "@/components/trustlens/PDFPreview";
+import { CitationsPanel } from "@/components/trustlens/CitationsPanel";
 import { getVendor, documentFileUrl } from "@/lib/api";
 import { useTenant } from "@/context/TenantContext";
-import type { Vendor, QueryAnswer, TrustDocument } from "@/lib/types";
-import { DOMAINS } from "@/lib/types";
+import type { QueryAnswer, TrustDocument, Vendor } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/buyer_/assess/$vendorId")({
@@ -30,7 +19,7 @@ export const Route = createFileRoute("/buyer_/assess/$vendorId")({
       {
         name: "description",
         content:
-          "Domain-by-domain breakdown of a service's verified security posture, with bbox-grounded evidence per question.",
+          "Compact, row-by-row breakdown of a vendor's verified security posture with bbox-grounded evidence.",
       },
     ],
   }),
@@ -47,21 +36,16 @@ function initials(name: string) {
     .toUpperCase();
 }
 
-function scoreTone(v: number) {
-  if (v >= 80) return "text-verified";
-  if (v >= 60) return "text-signature";
-  if (v >= 40) return "text-warning";
-  return "text-danger";
-}
-
 function AssessPage() {
   const { vendorId } = Route.useParams();
   const { activeTenant } = useTenant();
   const [service, setService] = useState<Vendor | null>(null);
   const [answers, setAnswers] = useState<QueryAnswer[] | null>(null);
   const [docs, setDocs] = useState<TrustDocument[]>([]);
-  const [openDomain, setOpenDomain] = useState<string | null>(DOMAINS[0]);
   const [activeAnswerId, setActiveAnswerId] = useState<string | null>(null);
+  const [domain, setDomain] = useState<string | null>(null);
+  const [verdict, setVerdict] = useState<"all" | "YES" | "NO" | "N_A">("all");
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     if (!activeTenant) return;
@@ -74,15 +58,27 @@ function AssessPage() {
     });
   }, [vendorId, activeTenant]);
 
-  const grouped = useMemo(() => {
-    const out: Record<string, QueryAnswer[]> = {};
-    DOMAINS.forEach((d) => (out[d] = []));
-    (answers ?? []).forEach((a) => {
-      if (!out[a.domain]) out[a.domain] = [];
-      out[a.domain].push(a);
-    });
-    return out;
+  const domains = useMemo(() => {
+    if (!answers) return [];
+    const set = new Set<string>();
+    answers.forEach((a) => set.add(a.domain));
+    return Array.from(set).sort();
   }, [answers]);
+
+  const filtered = useMemo(() => {
+    if (!answers) return [];
+    return answers.filter((a) => {
+      if (domain && a.domain !== domain) return false;
+      if (verdict !== "all" && a.verdict !== verdict) return false;
+      if (query) {
+        const q = query.toLowerCase();
+        if (!a.question.toLowerCase().includes(q) && !(a.answer ?? "").toLowerCase().includes(q)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [answers, domain, verdict, query]);
 
   const activeAnswer = useMemo(
     () => answers?.find((a) => a.question_id === activeAnswerId) ?? null,
@@ -95,8 +91,7 @@ function AssessPage() {
 
   return (
     <BuyerShell>
-      <div className="mx-auto max-w-7xl px-6 py-8">
-        {/* Back */}
+      <div className="mx-auto max-w-6xl px-6 py-8">
         <Link
           to="/buyer"
           className="mb-5 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
@@ -113,20 +108,20 @@ function AssessPage() {
         ) : (
           <>
             {/* Header */}
-            <div className="mb-8 rounded-2xl border border-border bg-surface p-6 shadow-card">
-              <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex items-center gap-5">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-signature/30 to-signature/5 font-mono-num text-base font-semibold text-signature">
+            <div className="mb-6 rounded-2xl border border-border bg-surface p-5 shadow-card">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-signature/30 to-signature/5 font-mono-num text-base font-semibold text-signature">
                     {initials(service.name)}
                   </div>
                   <div>
                     <div className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
                       Service Assessment
                     </div>
-                    <h1 className="mt-1 text-3xl font-semibold tracking-tight">
+                    <h1 className="mt-0.5 text-2xl font-semibold tracking-tight">
                       {service.name}
                     </h1>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
                       <span className="inline-flex items-center gap-1">
                         <FileText className="h-3 w-3" />
                         {service.document_count} documents
@@ -136,163 +131,99 @@ function AssessPage() {
                         <Building2 className="h-3 w-3" />
                         {answers.length} answered questions
                       </span>
-                      <span>·</span>
-                      <span>
-                        Updated{" "}
-                        {Math.max(
-                          1,
-                          Math.round(
-                            (Date.now() - new Date(service.last_updated).getTime()) /
-                              86_400_000,
-                          ),
-                        )}
-                        d ago
-                      </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-6">
-                  <ConfidenceRing
-                    value={service.overall_score}
-                    size={104}
-                    strokeWidth={8}
-                    label="Overall"
-                  />
-                  <div className="hidden text-right md:block">
-                    <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                      Verdict
-                    </div>
-                    <div
-                      className={cn(
-                        "mt-0.5 text-lg font-semibold",
-                        scoreTone(service.overall_score),
-                      )}
-                    >
-                      {service.overall_score >= 80
-                        ? "Verified"
-                        : service.overall_score >= 60
-                          ? "Acceptable"
-                          : service.overall_score >= 40
-                            ? "Needs Review"
-                            : "At Risk"}
-                    </div>
-                  </div>
-                </div>
+                <ConfidenceRing
+                  value={service.overall_score}
+                  size={88}
+                  strokeWidth={7}
+                  label="Overall"
+                />
               </div>
             </div>
 
-            {/* Domain accordion */}
-            <div className="space-y-3">
-              {DOMAINS.map((d) => {
-                const score = service.domain_scores[d] ?? 0;
-                const list = grouped[d] ?? [];
-                const isOpen = openDomain === d;
-                return (
-                  <div
-                    key={d}
-                    className="overflow-hidden rounded-2xl border border-border bg-surface shadow-card"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setOpenDomain(isOpen ? null : d)}
-                      className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-surface-elevated/40"
-                    >
-                      <div
-                        className={cn(
-                          "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-elevated",
-                          scoreTone(score),
-                        )}
-                      >
-                        {score >= 80 ? (
-                          <CheckCircle2 className="h-4 w-4" />
-                        ) : score >= 60 ? (
-                          <ShieldCheck className="h-4 w-4" />
-                        ) : (
-                          <AlertTriangle className="h-4 w-4" />
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm font-semibold tracking-tight">{d}</div>
-                        <div className="text-[11px] text-muted-foreground">
-                          {list.length} {list.length === 1 ? "question" : "questions"}
-                        </div>
-                      </div>
-                      <div className="hidden w-40 sm:block">
-                        <ConfidenceBar value={score / 100} showLabel={false} />
-                      </div>
-                      <div className={cn("font-mono-num w-10 text-right text-sm font-semibold", scoreTone(score))}>
-                        {score}
-                      </div>
-                      <ChevronDown
-                        className={cn(
-                          "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
-                          isOpen && "rotate-180",
-                        )}
-                      />
-                    </button>
+            {/* Filter bar */}
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              {(
+                [
+                  { key: "all", label: "All" },
+                  { key: "YES", label: "Yes" },
+                  { key: "NO", label: "No" },
+                  { key: "N_A", label: "Unresolved" },
+                ] as { key: typeof verdict; label: string }[]
+              ).map((v) => (
+                <button
+                  key={v.key}
+                  type="button"
+                  onClick={() => setVerdict(v.key)}
+                  className={cn(
+                    "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                    verdict === v.key
+                      ? "border-signature/60 bg-signature/10 text-signature"
+                      : "border-border bg-surface text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {v.label}
+                </button>
+              ))}
+              <span className="mx-1 h-4 w-px bg-border" />
+              <button
+                type="button"
+                onClick={() => setDomain(null)}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                  domain === null
+                    ? "border-signature/60 bg-signature/10 text-signature"
+                    : "border-border bg-surface text-muted-foreground hover:text-foreground",
+                )}
+              >
+                All domains
+              </button>
+              {domains.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setDomain(domain === d ? null : d)}
+                  className={cn(
+                    "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                    domain === d
+                      ? "border-signature/60 bg-signature/10 text-signature"
+                      : "border-border bg-surface text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {d}
+                </button>
+              ))}
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search questions or answers…"
+                className="ml-auto w-60 rounded-md border border-border bg-surface px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-signature/50 focus:outline-none"
+              />
+            </div>
 
-                    <AnimatePresence initial={false}>
-                      {isOpen && (
-                        <motion.div
-                          key="content"
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.25 }}
-                          className="overflow-hidden border-t border-border"
-                        >
-                          {list.length === 0 ? (
-                            <div className="px-5 py-6 text-center text-xs text-muted-foreground">
-                              No questions in this domain.
-                            </div>
-                          ) : (
-                            <ul className="divide-y divide-border">
-                              {list.map((a) => (
-                                <li
-                                  key={a.question_id}
-                                  className="px-5 py-4 transition-colors hover:bg-surface-elevated/30"
-                                >
-                                  <div className="flex items-start justify-between gap-4">
-                                    <div className="min-w-0 flex-1">
-                                      <div className="text-sm font-medium leading-snug">
-                                        {a.question}
-                                      </div>
-                                      <div className="mt-2 max-w-2xl">
-                                        {a.idk ? (
-                                          <IDKBadge />
-                                        ) : (
-                                          <p className="text-xs leading-relaxed text-muted-foreground">
-                                            {a.answer}
-                                          </p>
-                                        )}
-                                      </div>
-                                      {!a.idk && (
-                                        <div className="mt-3 max-w-xs">
-                                          <ConfidenceBar value={a.confidence} />
-                                        </div>
-                                      )}
-                                    </div>
-                                    {!a.idk && a.evidence[0] && (
-                                      <button
-                                        type="button"
-                                        onClick={() => setActiveAnswerId(a.question_id)}
-                                        className="shrink-0 rounded-md border border-border bg-surface-elevated px-3 py-1.5 text-xs font-medium text-signature transition-colors hover:border-signature/40"
-                                      >
-                                        View evidence
-                                      </button>
-                                    )}
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                );
-              })}
+            {/* Compact one-row list */}
+            <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-card">
+              {filtered.length === 0 ? (
+                <div className="px-5 py-10 text-center text-sm text-muted-foreground">
+                  No answers match the current filters.
+                </div>
+              ) : (
+                filtered.map((a) => (
+                  <AnswerRow
+                    key={a.question_id}
+                    answer={a}
+                    isActive={a.question_id === activeAnswerId}
+                    onClick={() => {
+                      if (a.idk) return;
+                      setActiveAnswerId(a.question_id === activeAnswerId ? null : a.question_id);
+                    }}
+                  />
+                ))
+              )}
             </div>
           </>
         )}
@@ -300,7 +231,7 @@ function AssessPage() {
 
       {/* Evidence drawer */}
       <AnimatePresence>
-        {activeAnswer && activeAnswer.evidence[0] && (
+        {activeAnswer && !activeAnswer.idk && (activeAnswer.evidence[0] || activeAnswer.citations.length > 0) && (
           <motion.div
             key="overlay"
             initial={{ opacity: 0 }}
@@ -320,7 +251,7 @@ function AssessPage() {
               <div className="flex items-center justify-between border-b border-border px-6 py-4">
                 <div>
                   <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-signature">
-                    Evidence
+                    {activeAnswer.source === "web" ? "Web Sources" : "Evidence"}
                   </div>
                   <div className="mt-0.5 line-clamp-1 text-sm font-medium">
                     {activeAnswer.question}
@@ -335,11 +266,18 @@ function AssessPage() {
                 </button>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-                <PDFPreview
-                  evidence={activeAnswer.evidence[0]}
-                  filename={activeDoc?.filename}
-                  pdfUrl={activeDoc ? documentFileUrl(activeDoc.id) : undefined}
-                />
+                {activeAnswer.source === "web" && activeAnswer.citations.length > 0 ? (
+                  <CitationsPanel
+                    answer={activeAnswer.answer}
+                    citations={activeAnswer.citations}
+                  />
+                ) : activeAnswer.evidence[0] ? (
+                  <PDFPreview
+                    evidence={activeAnswer.evidence[0]}
+                    filename={activeDoc?.filename}
+                    pdfUrl={activeDoc ? documentFileUrl(activeDoc.id) : undefined}
+                  />
+                ) : null}
               </div>
             </motion.aside>
           </motion.div>

@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
-import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { BBoxOverlay } from "./BBoxOverlay";
 import type { EvidenceChunk } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
+// Serve the worker from public/ (staged from node_modules at dev start) and
+// version-stamp the URL. The stamp invalidates stale browser cache whenever
+// react-pdf's bundled pdfjs version changes.
+pdfjs.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs?v=${pdfjs.version}`;
 
 interface RealPDFPreviewProps {
   evidence: EvidenceChunk;

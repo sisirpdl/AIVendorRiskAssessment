@@ -142,10 +142,13 @@ export function getCachedAnswers(
         question_id: string;
         question: string;
         domain: string;
+        verdict: QueryAnswer["verdict"];
         answer: string | null;
         confidence: number;
         idk: boolean;
+        source: QueryAnswer["source"];
         evidence: QueryAnswer["evidence"];
+        citations: QueryAnswer["citations"];
         status: QueryAnswer["status"];
       }>;
     };
@@ -156,10 +159,13 @@ export function getCachedAnswers(
         question_id: a.question_id,
         question: a.question,
         domain: a.domain,
+        verdict: a.verdict,
         answer: a.answer,
         confidence: a.confidence,
         idk: a.idk,
+        source: a.source,
         evidence: a.evidence,
+        citations: a.citations ?? [],
         status: a.status,
       })),
     };
@@ -211,10 +217,13 @@ export async function getVendor(vendorId: string, tenantId: string): Promise<Ven
         question_id: string;
         question: string;
         domain: string;
+        verdict: QueryAnswer["verdict"];
         answer: string | null;
         confidence: number;
         idk: boolean;
+        source: QueryAnswer["source"];
         evidence: QueryAnswer["evidence"];
+        citations: QueryAnswer["citations"];
         status: QueryAnswer["status"];
         document_id: string;
       }>;
@@ -323,6 +332,65 @@ export async function getConflicts(tenantId: string): Promise<Conflict[]> {
   }));
 }
 
+// ---------- Share links ----------
+
+export interface CreateShareRequest {
+  tenant_id: string;
+  document_id: string;
+  edits: Record<string, { verdict: "YES" | "NO" | "N_A"; answer: string }>;
+}
+
+export async function createShareLink(req: CreateShareRequest): Promise<{ token: string }> {
+  return request("/api/share", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+}
+
+export interface SharedReport {
+  token: string;
+  document: {
+    id: string;
+    filename: string;
+    vendor_id: string;
+    page_count: number;
+    created_at: string | null;
+  };
+  total: number;
+  answers: QueryAnswer[];
+}
+
+export async function getSharedReport(token: string): Promise<SharedReport> {
+  const raw = await request<{
+    token: string;
+    document: SharedReport["document"];
+    total: number;
+    answers: Array<{
+      question_id: string;
+      question: string;
+      domain: string;
+      verdict: QueryAnswer["verdict"];
+      answer: string | null;
+      confidence: number;
+      idk: boolean;
+      source: QueryAnswer["source"];
+      evidence: QueryAnswer["evidence"];
+      citations: QueryAnswer["citations"];
+      status: QueryAnswer["status"];
+    }>;
+  }>(`/api/share/${encodeURIComponent(token)}`);
+  return {
+    token: raw.token,
+    document: raw.document,
+    total: raw.total,
+    answers: raw.answers.map((a) => ({
+      ...a,
+      citations: a.citations ?? [],
+    })),
+  };
+}
+
 // ---------- Query (RAG) ----------
 
 export interface QueryRequest {
@@ -338,18 +406,25 @@ export function queryRag(req: QueryRequest): Promise<QueryAnswer> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(req),
   }).then((r) => {
-    const raw = r as Omit<QueryAnswer, "question_id" | "domain" | "status"> & {
+    const raw = r as {
       question: string;
+      answer: string | null;
+      confidence: number;
+      idk: boolean;
+      evidence: QueryAnswer["evidence"];
     };
-    // Backend QueryAnswer lacks the UI-only fields; fill them.
+    // On-demand RAG only returns the hero fields; fill UI-only and verdict defaults.
     return {
       question_id: crypto.randomUUID(),
       question: raw.question,
       domain: "",
+      verdict: raw.idk ? "N_A" : "YES",
       answer: raw.answer,
       confidence: raw.confidence,
       idk: raw.idk,
+      source: "pdf",
       evidence: raw.evidence,
+      citations: [],
       status: "pending_review",
     } satisfies QueryAnswer;
   });

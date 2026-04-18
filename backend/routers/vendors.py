@@ -139,10 +139,13 @@ def get_vendor(vendor_id: str, tenant_id: str = Query(...)) -> dict:
                 "question_id": a.question_id,
                 "question": a.question_text,
                 "domain": a.domain,
+                "verdict": a.verdict,
                 "answer": a.answer,
                 "confidence": float(a.confidence),
                 "idk": bool(a.idk),
+                "source": a.source,
                 "evidence": json.loads(a.evidence_json or "[]"),
+                "citations": json.loads(a.citations_json or "[]"),
                 "status": "pending_review",
                 "document_id": a.document_id,
             }

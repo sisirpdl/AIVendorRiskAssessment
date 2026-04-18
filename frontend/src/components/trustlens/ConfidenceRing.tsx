@@ -69,7 +69,6 @@ export function ConfidenceRing({
           initial={{ strokeDasharray: circumference, strokeDashoffset: circumference }}
           animate={{ strokeDashoffset: offset }}
           transition={{ duration: 0.9, ease: "easeOut" }}
-          style={{ filter: "drop-shadow(0 0 6px currentColor)" }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">

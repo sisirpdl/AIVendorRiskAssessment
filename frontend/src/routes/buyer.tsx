@@ -10,11 +10,13 @@ import {
   CheckCircle2,
   AlertTriangle,
   XCircle,
+  Trash2,
 } from "lucide-react";
 import { BuyerShell } from "@/components/trustlens/BuyerShell";
 import { ConfidenceRing } from "@/components/trustlens/ConfidenceRing";
 import { useTenant } from "@/context/TenantContext";
 import { getVendors } from "@/lib/api";
+import { getImports, importedVendorToVendor, isImportedVendorId, removeImport, tokenFromImportedId } from "@/lib/imports";
 import { DOMAINS } from "@/lib/types";
 import type { Vendor } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -126,7 +128,10 @@ function VendorGrid({ tenantId }: { tenantId?: string }) {
   useEffect(() => {
     if (!tenantId) return;
     setVendors(null);
-    getVendors(tenantId).then(setVendors);
+    getVendors(tenantId).then((remote) => {
+      const imports = getImports(tenantId).map((i) => importedVendorToVendor(i, tenantId));
+      setVendors([...imports, ...remote]);
+    });
   }, [tenantId]);
 
   const filtered = useMemo(() => {
@@ -217,7 +222,18 @@ function VendorGrid({ tenantId }: { tenantId?: string }) {
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.35, delay: Math.min(i * 0.04, 0.3) }}
               >
-                <VendorCard vendor={v} highlightDomain={domain === "all" ? null : domain} index={i} />
+                <VendorCard
+                  vendor={v}
+                  highlightDomain={domain === "all" ? null : domain}
+                  index={i}
+                  onRemoveImport={(vendorId) => {
+                    if (!tenantId) return;
+                    const token = tokenFromImportedId(vendorId);
+                    if (!token) return;
+                    removeImport(tenantId, token);
+                    setVendors((prev) => (prev ? prev.filter((x) => x.id !== vendorId) : prev));
+                  }}
+                />
               </motion.div>
             ))}
           </AnimatePresence>
@@ -288,10 +304,12 @@ function VendorCard({
   vendor,
   highlightDomain,
   index,
+  onRemoveImport,
 }: {
   vendor: Vendor;
   highlightDomain: string | null;
   index: number;
+  onRemoveImport?: (vendorId: string) => void;
 }) {
   const tone = scoreTone(vendor.overall_score);
   const StatusIcon = statusIcon(vendor.overall_score);
@@ -302,12 +320,27 @@ function VendorCard({
     Math.round((Date.now() - lastUpdated.getTime()) / 86_400_000),
   );
 
-  return (
-    <Link
-      to="/buyer/assess/$vendorId"
-      params={{ vendorId: vendor.id }}
-      className="group relative flex h-full flex-col rounded-2xl border border-border bg-surface p-5 shadow-card transition-all duration-200 hover:-translate-y-1 hover:border-signature/50 hover:shadow-[0_0_0_1px_rgba(250,204,21,0.2),0_18px_50px_-20px_rgba(250,204,21,0.3)]"
-    >
+  const isImported = isImportedVendorId(vendor.id);
+  const shareToken = tokenFromImportedId(vendor.id);
+  const cardClasses =
+    "group relative flex h-full flex-col rounded-2xl border border-border bg-surface p-5 shadow-card transition-all duration-200 hover:-translate-y-1 hover:border-signature/50 hover:shadow-[0_0_0_1px_rgba(250,204,21,0.2),0_18px_50px_-20px_rgba(250,204,21,0.3)]";
+
+  const body = (
+    <>
+      {isImported && onRemoveImport && (
+        <button
+          type="button"
+          aria-label="Remove imported vendor"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onRemoveImport(vendor.id);
+          }}
+          className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-md border border-border bg-surface text-muted-foreground opacity-0 transition-all hover:border-danger/40 hover:text-danger group-hover:opacity-100"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      )}
       {/* Top row: logo + identity + ring */}
       <div className="flex items-start gap-4">
         <div
@@ -385,25 +418,32 @@ function VendorCard({
 
       {/* Footer */}
       <div className="mt-5 flex items-center justify-between border-t border-border pt-3">
-        <span
-          className={cn(
-            "rounded-md border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider",
-            tone.chip,
-          )}
-        >
-          {vendor.overall_score >= 80
-            ? "Verified"
-            : vendor.overall_score >= 60
-              ? "Acceptable"
-              : vendor.overall_score >= 40
-                ? "Review"
-                : "At Risk"}
-        </span>
+        {isImported ? (
+          <span className="rounded-md border border-signature/30 bg-signature/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-signature">
+            Imported
+          </span>
+        ) : (
+          <span />
+        )}
         <span className="inline-flex items-center gap-1 text-xs font-medium text-signature opacity-0 transition-opacity group-hover:opacity-100">
           Open assessment
           <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
         </span>
       </div>
+    </>
+  );
+
+  if (isImported && shareToken) {
+    return (
+      <Link to="/share/$token" params={{ token: shareToken }} className={cardClasses}>
+        {body}
+      </Link>
+    );
+  }
+
+  return (
+    <Link to="/buyer/assess/$vendorId" params={{ vendorId: vendor.id }} className={cardClasses}>
+      {body}
     </Link>
   );
 }

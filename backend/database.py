@@ -55,9 +55,22 @@ class CachedAnswer(Base):
     question_text: Mapped[str] = mapped_column(Text)
     domain: Mapped[str] = mapped_column(String, default="")
     answer: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    verdict: Mapped[str] = mapped_column(String, default="N_A")  # YES | NO | N_A
+    source: Mapped[str] = mapped_column(String, default="pdf")  # pdf | web
     confidence: Mapped[float] = mapped_column(Float, default=0.0)
     idk: Mapped[bool] = mapped_column(Integer, default=0)  # 0/1 in SQLite
     evidence_json: Mapped[str] = mapped_column(Text, default="[]")
+    citations_json: Mapped[str] = mapped_column(Text, default="[]")
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class ShareLink(Base):
+    __tablename__ = "share_links"
+
+    token: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String, index=True)
+    document_id: Mapped[str] = mapped_column(String, ForeignKey("documents.id"), index=True)
+    edits_json: Mapped[str] = mapped_column(Text, default="{}")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
