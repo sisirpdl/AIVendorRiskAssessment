@@ -1,0 +1,73 @@
+{
+  "version": "1.0",
+  "source": "CAIQ v4.0.2 (curated subset)",
+  "domains": [
+    "Access Control & Identity",
+    "Data Security & Encryption",
+    "Incident Response",
+    "Business Continuity",
+    "Vulnerability Management",
+    "Compliance & Audit",
+    "Vendor & Supply Chain",
+    "Infrastructure & Ops"
+  ],
+  "questions": [
+    { "id": "IAM-01", "domain": "Access Control & Identity", "question": "Does the vendor enforce multi-factor authentication (MFA) for all administrative access to production systems?", "criticality": "high" },
+    { "id": "IAM-02", "domain": "Access Control & Identity", "question": "Are strong password policies (complexity, minimum length, rotation, reuse) enforced for user accounts?", "criticality": "medium" },
+    { "id": "IAM-03", "domain": "Access Control & Identity", "question": "Are user access reviews performed on a defined cadence (e.g., quarterly)?", "criticality": "high" },
+    { "id": "IAM-04", "domain": "Access Control & Identity", "question": "Is access provisioning and deprovisioning tied to the HR onboarding and offboarding process?", "criticality": "high" },
+    { "id": "IAM-05", "domain": "Access Control & Identity", "question": "Is role-based access control (RBAC) and least-privilege enforced across production systems?", "criticality": "high" },
+    { "id": "IAM-06", "domain": "Access Control & Identity", "question": "Are shared or generic accounts prohibited for production access?", "criticality": "medium" },
+    { "id": "IAM-07", "domain": "Access Control & Identity", "question": "Is privileged access logged, monitored, and reviewed?", "criticality": "high" },
+    { "id": "IAM-08", "domain": "Access Control & Identity", "question": "Is single sign-on (SSO) via SAML or OIDC used for corporate and SaaS applications?", "criticality": "medium" },
+
+    { "id": "DSE-01", "domain": "Data Security & Encryption", "question": "Is customer data encrypted at rest using AES-256 or equivalent strength?", "criticality": "high" },
+    { "id": "DSE-02", "domain": "Data Security & Encryption", "question": "Is data encrypted in transit using TLS 1.2 or higher?", "criticality": "high" },
+    { "id": "DSE-03", "domain": "Data Security & Encryption", "question": "Are encryption keys managed in a hardware security module (HSM) or a dedicated key management service (KMS)?", "criticality": "high" },
+    { "id": "DSE-04", "domain": "Data Security & Encryption", "question": "Are encryption keys rotated on a defined schedule?", "criticality": "medium" },
+    { "id": "DSE-05", "domain": "Data Security & Encryption", "question": "Is customer data logically or physically segregated between tenants?", "criticality": "high" },
+    { "id": "DSE-06", "domain": "Data Security & Encryption", "question": "Is data classification defined and applied (e.g., public, internal, confidential, restricted)?", "criticality": "medium" },
+    { "id": "DSE-07", "domain": "Data Security & Encryption", "question": "Is data retention governed by a documented retention policy?", "criticality": "medium" },
+    { "id": "DSE-08", "domain": "Data Security & Encryption", "question": "Are secure data disposal procedures defined for end-of-life storage media?", "criticality": "medium" },
+
+    { "id": "IR-01", "domain": "Incident Response", "question": "Does the organization maintain a documented incident response plan?", "criticality": "high" },
+    { "id": "IR-02", "domain": "Incident Response", "question": "Is the incident response plan tested at least annually via tabletop exercises or simulations?", "criticality": "medium" },
+    { "id": "IR-03", "domain": "Incident Response", "question": "What is the customer notification SLA for confirmed security incidents affecting customer data?", "criticality": "high" },
+    { "id": "IR-04", "domain": "Incident Response", "question": "Are security incidents logged in a centralized system with defined severity tiers?", "criticality": "medium" },
+    { "id": "IR-05", "domain": "Incident Response", "question": "Is a 24x7 security operations capability or on-call rotation in place for incident response?", "criticality": "high" },
+    { "id": "IR-06", "domain": "Incident Response", "question": "Are post-incident root-cause analyses and forensic procedures documented?", "criticality": "medium" },
+
+    { "id": "BCR-01", "domain": "Business Continuity", "question": "Does the organization maintain a documented business continuity plan (BCP)?", "criticality": "high" },
+    { "id": "BCR-02", "domain": "Business Continuity", "question": "What is the documented recovery time objective (RTO) for tier-1 production systems?", "criticality": "high" },
+    { "id": "BCR-03", "domain": "Business Continuity", "question": "What is the documented recovery point objective (RPO) for tier-1 production systems?", "criticality": "high" },
+    { "id": "BCR-04", "domain": "Business Continuity", "question": "Are disaster recovery (DR) drills performed at least annually with documented results?", "criticality": "medium" },
+    { "id": "BCR-05", "domain": "Business Continuity", "question": "Are production backups encrypted and stored in a geographically separate location?", "criticality": "high" },
+
+    { "id": "TVM-01", "domain": "Vulnerability Management", "question": "Are authenticated vulnerability scans performed on a regular cadence across production systems?", "criticality": "high" },
+    { "id": "TVM-02", "domain": "Vulnerability Management", "question": "Does the organization perform third-party penetration testing at least annually?", "criticality": "high" },
+    { "id": "TVM-03", "domain": "Vulnerability Management", "question": "What is the remediation SLA for critical-severity vulnerabilities in production systems?", "criticality": "high" },
+    { "id": "TVM-04", "domain": "Vulnerability Management", "question": "Is patch management centralized and tracked against defined SLAs?", "criticality": "medium" },
+    { "id": "TVM-05", "domain": "Vulnerability Management", "question": "Are security findings tracked to closure in a ticketing or GRC system?", "criticality": "medium" },
+    { "id": "TVM-06", "domain": "Vulnerability Management", "question": "Is application security testing (SAST/DAST) integrated into the software development lifecycle?", "criticality": "medium" },
+
+    { "id": "AAC-01", "domain": "Compliance & Audit", "question": "Has the vendor completed a SOC 2 Type II audit in the last 12 months?", "criticality": "high" },
+    { "id": "AAC-02", "domain": "Compliance & Audit", "question": "Is the SOC 2 audit scope inclusive of all systems that process or store customer data?", "criticality": "high" },
+    { "id": "AAC-03", "domain": "Compliance & Audit", "question": "Does the vendor maintain ISO/IEC 27001 certification?", "criticality": "medium" },
+    { "id": "AAC-04", "domain": "Compliance & Audit", "question": "Does the vendor meet PCI DSS, HIPAA, or other applicable regulatory requirements?", "criticality": "medium" },
+    { "id": "AAC-05", "domain": "Compliance & Audit", "question": "Are internal audits conducted on security controls at least annually?", "criticality": "medium" },
+    { "id": "AAC-06", "domain": "Compliance & Audit", "question": "Is there a documented internal control framework aligned to SOC 2 TSC or NIST CSF?", "criticality": "high" },
+    { "id": "AAC-07", "domain": "Compliance & Audit", "question": "Are audit findings tracked to remediation with management sign-off?", "criticality": "medium" },
+
+    { "id": "STA-01", "domain": "Vendor & Supply Chain", "question": "Does the vendor maintain a public list of sub-processors with access to customer data?", "criticality": "high" },
+    { "id": "STA-02", "domain": "Vendor & Supply Chain", "question": "Are third-party vendors subject to a formal security risk assessment prior to onboarding?", "criticality": "high" },
+    { "id": "STA-03", "domain": "Vendor & Supply Chain", "question": "Is a software bill of materials (SBOM) produced for each production release?", "criticality": "medium" },
+    { "id": "STA-04", "domain": "Vendor & Supply Chain", "question": "Are third-party code dependencies scanned for known vulnerabilities (e.g., SCA tooling)?", "criticality": "medium" },
+    { "id": "STA-05", "domain": "Vendor & Supply Chain", "question": "Are contractual protections (e.g., data processing agreements, confidentiality) required for all third parties handling customer data?", "criticality": "high" },
+
+    { "id": "INF-01", "domain": "Infrastructure & Ops", "question": "Are production systems hosted in data centers with physical security controls certified under SSAE 18 or ISO 27001?", "criticality": "high" },
+    { "id": "INF-02", "domain": "Infrastructure & Ops", "question": "Are production and non-production environments logically or physically segregated?", "criticality": "high" },
+    { "id": "INF-03", "domain": "Infrastructure & Ops", "question": "Is infrastructure-as-code (IaC) used to provision and manage production resources?", "criticality": "medium" },
+    { "id": "INF-04", "domain": "Infrastructure & Ops", "question": "Are network segmentation and firewall rules documented, reviewed, and approved?", "criticality": "medium" },
+    { "id": "INF-05", "domain": "Infrastructure & Ops", "question": "Are server, container, or VM images hardened per CIS benchmarks or an equivalent standard?", "criticality": "medium" }
+  ]
+}

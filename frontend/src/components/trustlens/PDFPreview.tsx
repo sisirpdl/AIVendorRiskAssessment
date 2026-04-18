@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { BBoxOverlay } from "./BBoxOverlay";
 import type { EvidenceChunk } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -6,11 +6,45 @@ import { cn } from "@/lib/utils";
 interface PDFPreviewProps {
   evidence: EvidenceChunk;
   filename?: string;
+  pdfUrl?: string;
   className?: string;
 }
 
-// Stylized fake PDF page. US Letter aspect ratio (612x792 → ~0.77).
-export function PDFPreview({ evidence, filename, className }: PDFPreviewProps) {
+// react-pdf pulls in pdfjs which touches browser-only globals (DOMMatrix) at import time,
+// so it has to be loaded client-side only.
+const RealPDFPreview = lazy(() =>
+  import("./RealPDFPreview").then((m) => ({ default: m.RealPDFPreview })),
+);
+
+export function PDFPreview({ evidence, filename, pdfUrl, className }: PDFPreviewProps) {
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => setIsClient(true), []);
+
+  if (pdfUrl && isClient) {
+    return (
+      <Suspense
+        fallback={
+          <StylizedPreview evidence={evidence} filename={filename} className={className} />
+        }
+      >
+        <RealPDFPreview
+          evidence={evidence}
+          filename={filename}
+          pdfUrl={pdfUrl}
+          className={className}
+        />
+      </Suspense>
+    );
+  }
+  return <StylizedPreview evidence={evidence} filename={filename} className={className} />;
+}
+
+// Stylized fallback used by the mock demo when pdfUrl is not provided (or during SSR).
+function StylizedPreview({
+  evidence,
+  filename,
+  className,
+}: Pick<PDFPreviewProps, "evidence" | "filename" | "className">) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
 
@@ -25,7 +59,6 @@ export function PDFPreview({ evidence, filename, className }: PDFPreviewProps) {
     return () => ro.disconnect();
   }, []);
 
-  // Build deterministic fake text lines
   const lines = Array.from({ length: 22 }, (_, i) => {
     const widths = [98, 94, 86, 92, 80, 88, 76, 90, 72, 84];
     return widths[(i + (evidence.page_number ?? 1)) % widths.length];
@@ -47,7 +80,6 @@ export function PDFPreview({ evidence, filename, className }: PDFPreviewProps) {
           ref={containerRef}
           className="relative mx-auto aspect-[612/792] w-full max-w-full overflow-hidden rounded-md bg-[oklch(0.96_0.005_250)] text-[oklch(0.18_0.02_260)] shadow-[0_8px_32px_oklch(0_0_0/0.6)]"
         >
-          {/* Fake document chrome */}
           <div className="absolute inset-x-0 top-0 flex items-center justify-between border-b border-[oklch(0.85_0.005_250)] px-6 py-3 text-[10px] uppercase tracking-[0.2em] text-[oklch(0.45_0.02_260)]">
             <span>SOC 2 Type II Report</span>
             <span>Confidential</span>
@@ -71,7 +103,6 @@ export function PDFPreview({ evidence, filename, className }: PDFPreviewProps) {
             {evidence.page_number}
           </div>
 
-          {/* Bbox overlay */}
           {size.w > 0 && (
             <BBoxOverlay
               key={evidence.chunk_id}
@@ -89,7 +120,7 @@ export function PDFPreview({ evidence, filename, className }: PDFPreviewProps) {
         <div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-signature">
           Extracted text
         </div>
-        <p className="text-foreground/85">{evidence.text}</p>
+        <p className="line-clamp-6 text-foreground/85">{evidence.text}</p>
       </div>
     </div>
   );

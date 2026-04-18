@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { getTenants } from "@/lib/mockApi";
+import { getTenants } from "@/lib/api";
 import type { Tenant } from "@/lib/types";
 
 interface TenantContextValue {

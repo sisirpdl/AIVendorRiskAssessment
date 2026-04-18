@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { GitBranch, Loader2, ArrowRight, Check, X, FileText } from "lucide-react";
 import { SellerShell } from "@/components/trustlens/SellerShell";
 import { useTenant } from "@/context/TenantContext";
-import { getConflicts, getVendor } from "@/lib/mockApi";
+import { getConflicts, getVendor } from "@/lib/api";
 import type { Conflict } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -36,7 +36,7 @@ function ConflictsPage() {
       const names: Record<string, string> = {};
       await Promise.all(
         cs.map(async (c) => {
-          const v = await getVendor(c.vendor_id);
+          const v = await getVendor(c.vendor_id, activeTenant.id);
           names[c.vendor_id] = v.name;
         }),
       );

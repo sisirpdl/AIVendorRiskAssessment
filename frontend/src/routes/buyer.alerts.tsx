@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { AlertTriangle, GitBranch, Clock, Loader2, ArrowRight, ShieldAlert } from "lucide-react";
 import { BuyerShell } from "@/components/trustlens/BuyerShell";
 import { useTenant } from "@/context/TenantContext";
-import { getConflicts, getVendors } from "@/lib/mockApi";
+import { getConflicts, getVendors } from "@/lib/api";
 import type { Conflict, Vendor } from "@/lib/types";
 import { cn } from "@/lib/utils";
 

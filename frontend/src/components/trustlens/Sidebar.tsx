@@ -65,11 +65,6 @@ export function Sidebar() {
           );
         })}
       </nav>
-
-      <div className="mt-auto rounded-xl border border-border bg-surface p-3 text-xs text-muted-foreground">
-        <div className="mb-1 font-medium text-foreground">Mock data</div>
-        Backend wiring coming next. All values simulated.
-      </div>
     </aside>
   );
 }

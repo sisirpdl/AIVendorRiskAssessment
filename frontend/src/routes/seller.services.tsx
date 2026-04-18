@@ -5,7 +5,7 @@ import { Search, Building2, FileText, ArrowRight, Loader2 } from "lucide-react";
 import { SellerShell } from "@/components/trustlens/SellerShell";
 import { ConfidenceRing } from "@/components/trustlens/ConfidenceRing";
 import { useTenant } from "@/context/TenantContext";
-import { getVendors } from "@/lib/mockApi";
+import { getVendors } from "@/lib/api";
 import type { Vendor } from "@/lib/types";
 import { cn } from "@/lib/utils";
 

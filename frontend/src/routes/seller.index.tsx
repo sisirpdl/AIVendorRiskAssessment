@@ -5,7 +5,7 @@ import { FileText, Building2, ListChecks, GitBranch, ArrowRight, Loader2 } from 
 import { SellerShell } from "@/components/trustlens/SellerShell";
 import { StatCard } from "@/components/trustlens/StatCard";
 import { useTenant } from "@/context/TenantContext";
-import { getDashboardStats, getDocuments } from "@/lib/mockApi";
+import { getDashboardStats, getDocuments } from "@/lib/api";
 import type { TrustDocument } from "@/lib/types";
 
 export const Route = createFileRoute("/seller/")({
