@@ -8,7 +8,7 @@ BASE_DIR = Path(__file__).parent
 DATA_DIR = BASE_DIR / "data"
 PDF_DIR = DATA_DIR / "pdfs"
 CHROMA_DIR = DATA_DIR / "chroma_db"
-SQLITE_PATH = DATA_DIR / "vendor_risk.db"
+SQLITE_PATH = DATA_DIR / "verifai.db"
 
 PDF_DIR.mkdir(parents=True, exist_ok=True)
 CHROMA_DIR.mkdir(parents=True, exist_ok=True)

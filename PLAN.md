@@ -1,8 +1,8 @@
-# AI Supply Chain Security Platform — Hackathon MVP Plan
+# VerifAI — Hackathon MVP Plan
 
 ## Context
 
-Building an AI-native Vendor Risk Assessment / Supply Chain Security platform for the Ignite Hackathon. Must run entirely locally (localhost + Docker) while hitting external LLM APIs. Target audience: IT/MSP companies. Two user modes: MSP Seller (uploads Trust Packages, reviews AI answers) and Auditor/Buyer (views verified security posture). Three technical differentiators: Visual Bounding Box Verification, Delta Engine conflict detection, and strict "Information Not Found" hallucination prevention.
+Building **VerifAI**, an AI-native Vendor Risk Assessment / Supply Chain Security platform for the Ignite Hackathon. Must run entirely locally (localhost + Docker) while hitting external LLM APIs. Target audience: IT/MSP companies. Two user modes: MSP Seller (uploads Trust Packages, reviews AI answers) and Auditor/Buyer (views verified security posture). Three technical differentiators: Visual Bounding Box Verification, Delta Engine conflict detection, and strict "Information Not Found" hallucination prevention.
 
 **Interrogation findings:**
 - Team: React/Next.js daily drivers — full react-pdf bbox overlay is appropriate
@@ -83,7 +83,7 @@ npm i framer-motion react-pdf react-dropzone lucide-react
 ## Directory Structure
 
 ```
-AIVendorRiskAssessment/
+VerifAI/
 ├── frontend/                    # Next.js 14 App Router
 │   ├── src/app/
 │   │   ├── page.tsx             # Role picker (Seller / Buyer)
@@ -126,7 +126,7 @@ AIVendorRiskAssessment/
 │   ├── data/
 │   │   ├── pdfs/                # Uploaded raw PDFs (local filesystem)
 │   │   ├── chroma_db/           # ChromaDB persistent store
-│   │   └── vendor_risk.db       # SQLite
+│   │   └── verifai.db           # SQLite
 │   ├── requirements.txt
 │   └── .env
 │

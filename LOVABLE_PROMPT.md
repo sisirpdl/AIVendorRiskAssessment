@@ -1,14 +1,14 @@
-# Lovable Prompt — AI Vendor Risk Assessment Frontend
+# Lovable Prompt — VerifAI Frontend
 
 Copy everything between the `---` markers below into Lovable.
 
 ---
 
-Build a premium, dark-themed frontend for an AI-native Supply Chain Security platform called **TrustLens**. This is a hackathon MVP — all data is mocked for now; a real FastAPI backend will be wired in later. Prioritize visual polish and smooth animations over depth of features.
+Build a premium, dark-themed frontend for an AI-native Supply Chain Security platform called **VerifAI**. This is a hackathon MVP — all data is mocked for now; a real FastAPI backend will be wired in later. Prioritize visual polish and smooth animations over depth of features.
 
 ## Product Context
 
-TrustLens helps IT Managed Service Providers (MSPs) automate vendor security questionnaires using AI. It has two user modes:
+VerifAI helps IT Managed Service Providers (MSPs) automate vendor security questionnaires using AI. It has two user modes:
 
 1. **Seller (MSP)** — uploads their client's security documentation (SOC 2 reports, policies) and reviews AI-generated answers before publishing them.
 2. **Buyer (Auditor / Client)** — views a "Trust Vault" with verified security posture, confidence scores, and PDF evidence.
@@ -127,14 +127,14 @@ Seed the mock API with:
 
 ### `/` — Role Picker (Landing)
 - Full-screen dark hero with radial gradient
-- Centered TrustLens wordmark with a small neon yellow dot accent
+- Centered VerifAI wordmark with a small neon yellow dot accent
 - Two large cards side by side: "I am an MSP (Seller)" and "I am an Auditor (Buyer)"
 - Each card has an icon (lucide `Building2` for MSP, `ShieldCheck` for Auditor), a one-line description, and a CTA arrow
 - Hover state: card lifts 4px, yellow border glow
 - One-liner tagline at top: "Verifiable AI answers for every vendor security question."
 
 ### `/seller` — Seller Dashboard Home
-- Top nav: TrustLens logo (left), Tenant Switcher dropdown (center-right, see below), user avatar (right, placeholder)
+- Top nav: VerifAI logo (left), Tenant Switcher dropdown (center-right, see below), user avatar (right, placeholder)
 - Four stat cards across the top: Total Documents, Active Vendors, Pending Reviews, Open Conflicts (each with a small sparkline or icon)
 - Main panel: grid of Recent Documents (card list with filename, vendor, upload date, processing status chip, "Review" CTA)
 - Sidebar nav: Dashboard, Upload, Vendors, Review Queue, Conflicts, Settings
