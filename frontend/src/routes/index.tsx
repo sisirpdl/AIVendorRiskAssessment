@@ -1,11 +1,12 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+﻿import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { Building2, ShieldCheck, ArrowRight } from "lucide-react";
+import { Logo } from "@/components/trustlens/Logo";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Verifai — Verifiable AI for Vendor Security" },
+      { title: "Verifai ΓÇö Verifiable AI for Vendor Security" },
       {
         name: "description",
         content:
@@ -21,18 +22,22 @@ function RolePicker() {
     <div className="relative min-h-screen overflow-hidden bg-background bg-hero-radial-strong">
       {/* Top tagline */}
       <div className="relative mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-        <div className="flex items-center gap-2">
-          <span className="relative inline-flex h-7 w-7 items-center justify-center rounded-lg bg-surface">
-            <span className="h-2 w-2 rounded-full bg-signature shadow-[0_0_10px_rgba(250,204,21,0.7)]" />
-          </span>
-          <span className="text-base font-semibold tracking-tight">Verifai</span>
-        </div>
+        <Logo size="md" />
         <span className="hidden text-xs text-muted-foreground sm:block">
           Verifiable AI answers for every vendor security question.
         </span>
       </div>
 
       <div className="relative mx-auto flex max-w-5xl flex-col items-center px-6 pb-24 pt-16 text-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.85 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: "spring", stiffness: 200, damping: 18 }}
+          className="mb-8"
+        >
+          <Logo size="xl" showWordmark={false} />
+        </motion.div>
+
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}

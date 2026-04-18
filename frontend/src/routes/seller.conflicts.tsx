@@ -1,17 +1,17 @@
-import { createFileRoute } from "@tanstack/react-router";
+﻿import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GitBranch, Loader2, ArrowRight, Check, X, FileText } from "lucide-react";
 import { SellerShell } from "@/components/trustlens/SellerShell";
 import { useTenant } from "@/context/TenantContext";
-import { getConflicts, getVendor } from "@/lib/api";
+import { getConflicts, getVendor } from "@/lib/mockApi";
 import type { Conflict } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/seller/conflicts")({
   head: () => ({
     meta: [
-      { title: "Conflicts — Verifai" },
+      { title: "Conflicts ΓÇö Verifai" },
       {
         name: "description",
         content:
@@ -36,7 +36,7 @@ function ConflictsPage() {
       const names: Record<string, string> = {};
       await Promise.all(
         cs.map(async (c) => {
-          const v = await getVendor(c.vendor_id, activeTenant.id);
+          const v = await getVendor(c.vendor_id);
           names[c.vendor_id] = v.name;
         }),
       );
@@ -54,7 +54,7 @@ function ConflictsPage() {
         <div className="mb-7 flex items-end justify-between gap-4">
           <div>
             <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              {activeTenant?.name ?? "—"}
+              {activeTenant?.name ?? "ΓÇö"}
             </div>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight">Conflicts</h1>
             <p className="mt-1 max-w-xl text-sm text-muted-foreground">
@@ -65,7 +65,7 @@ function ConflictsPage() {
           <div className="hidden items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-xs sm:flex">
             <GitBranch className="h-3.5 w-3.5 text-danger" />
             <span className="font-mono-num text-foreground">
-              {conflicts ? conflicts.length - Object.keys(resolved).length : "—"}
+              {conflicts ? conflicts.length - Object.keys(resolved).length : "ΓÇö"}
             </span>
             <span className="text-muted-foreground">unresolved</span>
           </div>
@@ -74,7 +74,7 @@ function ConflictsPage() {
         {!conflicts ? (
           <div className="flex items-center gap-2 rounded-xl border border-border bg-surface/40 px-5 py-10 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading conflicts…
+            Loading conflictsΓÇª
           </div>
         ) : conflicts.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border bg-surface/40 px-5 py-12 text-center text-sm text-muted-foreground">
@@ -97,7 +97,7 @@ function ConflictsPage() {
                     <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                          {vendorNames[c.vendor_id] ?? "Service"} · Conflict #{i + 1}
+                          {vendorNames[c.vendor_id] ?? "Service"} ┬╖ Conflict #{i + 1}
                         </div>
                         <div className="mt-0.5 text-base font-semibold">{c.question}</div>
                       </div>
@@ -110,11 +110,11 @@ function ConflictsPage() {
                               : "border-warning/30 bg-warning/10 text-warning",
                           )}
                         >
-                          Resolved · {choice === "accepted_new" ? "New" : "Old"}
+                          Resolved ┬╖ {choice === "accepted_new" ? "New" : "Old"}
                         </span>
                       ) : (
                         <span className="rounded-md border border-danger/30 bg-danger/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-danger">
-                          Unresolved · Δ {Math.round(c.confidence_delta * 100)}%
+                          Unresolved ┬╖ ╬ö {Math.round(c.confidence_delta * 100)}%
                         </span>
                       )}
                     </div>

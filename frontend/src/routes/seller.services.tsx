@@ -1,18 +1,18 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+﻿import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Search, Building2, FileText, ArrowRight, Loader2 } from "lucide-react";
 import { SellerShell } from "@/components/trustlens/SellerShell";
 import { ConfidenceRing } from "@/components/trustlens/ConfidenceRing";
 import { useTenant } from "@/context/TenantContext";
-import { getVendors } from "@/lib/api";
+import { getVendors } from "@/lib/mockApi";
 import type { Vendor } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/seller/services")({
   head: () => ({
     meta: [
-      { title: "Services — Verifai" },
+      { title: "Services ΓÇö Verifai" },
       {
         name: "description",
         content:
@@ -57,7 +57,7 @@ function ServicesPage() {
         <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
           <div>
             <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              {activeTenant?.name ?? "—"}
+              {activeTenant?.name ?? "ΓÇö"}
             </div>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight">Services</h1>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -71,7 +71,7 @@ function ServicesPage() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search services…"
+              placeholder="Search servicesΓÇª"
               className="h-10 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-signature/60 focus:ring-2 focus:ring-signature/20"
             />
           </div>
@@ -80,7 +80,7 @@ function ServicesPage() {
         {!filtered ? (
           <div className="flex items-center gap-2 rounded-xl border border-border bg-surface/40 px-5 py-10 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading services…
+            Loading servicesΓÇª
           </div>
         ) : filtered.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border bg-surface/40 px-5 py-12 text-center text-sm text-muted-foreground">
@@ -119,7 +119,7 @@ function ServicesPage() {
                       <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                         <FileText className="h-3 w-3" />
                         <span>{s.document_count} documents</span>
-                        <span>·</span>
+                        <span>┬╖</span>
                         <Building2 className="h-3 w-3" />
                         <span>Service</span>
                       </div>

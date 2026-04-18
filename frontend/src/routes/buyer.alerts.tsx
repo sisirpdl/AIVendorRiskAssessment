@@ -1,17 +1,17 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+﻿import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { AlertTriangle, GitBranch, Clock, Loader2, ArrowRight, ShieldAlert } from "lucide-react";
 import { BuyerShell } from "@/components/trustlens/BuyerShell";
 import { useTenant } from "@/context/TenantContext";
-import { getConflicts, getVendors } from "@/lib/api";
+import { getConflicts, getVendors } from "@/lib/mockApi";
 import type { Conflict, Vendor } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/buyer/alerts")({
   head: () => ({
     meta: [
-      { title: "Alerts — Verifai Trust Vault" },
+      { title: "Alerts ΓÇö Verifai Trust Vault" },
       {
         name: "description",
         content:
@@ -72,7 +72,7 @@ function AlertsPage() {
         {!alerts ? (
           <div className="flex items-center gap-2 rounded-xl border border-border bg-surface/40 px-5 py-10 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading alerts…
+            Loading alertsΓÇª
           </div>
         ) : alerts.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border bg-surface/40 px-5 py-12 text-center text-sm text-muted-foreground">
@@ -110,7 +110,7 @@ function AlertsPage() {
                           {a.severity}
                         </span>
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          {a.vendorName} · {a.kind}
+                          {a.vendorName} ┬╖ {a.kind}
                         </span>
                       </div>
                       <div className="text-sm font-semibold">{a.title}</div>
@@ -165,7 +165,7 @@ function buildAlerts(conflicts: Conflict[], vendors: Vendor[]): Alert[] {
     vendorId: c.vendor_id,
     vendorName: byId.get(c.vendor_id)?.name ?? "Service",
     title: c.question,
-    detail: `Newer document contradicts a previously verified answer (Δ ${Math.round(
+    detail: `Newer document contradicts a previously verified answer (╬ö ${Math.round(
       c.confidence_delta * 100,
     )}%).`,
     ago: `${(i + 1) * 3}h ago`,

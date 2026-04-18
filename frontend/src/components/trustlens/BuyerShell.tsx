@@ -1,7 +1,8 @@
-import type { ReactNode } from "react";
+﻿import type { ReactNode } from "react";
 import { Link, useLocation } from "@tanstack/react-router";
-import { ShieldCheck, LayoutGrid, AlertTriangle, FileSearch } from "lucide-react";
+import { LayoutGrid, AlertTriangle, FileSearch } from "lucide-react";
 import { TenantSwitcher } from "./TenantSwitcher";
+import { Logo } from "./Logo";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -20,10 +21,7 @@ export function BuyerShell({ children }: { children: ReactNode }) {
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
           <div className="flex items-center gap-8">
             <Link to="/" className="flex items-center gap-2">
-              <span className="relative inline-flex h-7 w-7 items-center justify-center rounded-lg bg-surface-elevated">
-                <ShieldCheck className="h-3.5 w-3.5 text-signature" />
-              </span>
-              <span className="text-base font-semibold tracking-tight">Verifai</span>
+              <Logo size="md" />
               <span className="ml-1 hidden rounded-md border border-border bg-surface px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground sm:inline">
                 Buyer
               </span>

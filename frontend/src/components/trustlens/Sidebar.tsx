@@ -1,4 +1,4 @@
-import { Link, useLocation } from "@tanstack/react-router";
+﻿import { Link, useLocation } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Upload,
@@ -8,6 +8,7 @@ import {
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Logo } from "./Logo";
 
 type NavItem = {
   to: string;
@@ -32,11 +33,8 @@ export function Sidebar() {
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-surface/40 px-3 py-5">
       <div className="mb-6 px-3">
-        <Link to="/" className="flex items-center gap-2">
-          <span className="relative inline-flex h-7 w-7 items-center justify-center rounded-lg bg-surface-elevated">
-            <span className="h-2 w-2 rounded-full bg-signature shadow-[0_0_10px_rgba(250,204,21,0.6)]" />
-          </span>
-          <span className="text-base font-semibold tracking-tight">Verifai</span>
+        <Link to="/">
+          <Logo size="md" />
         </Link>
       </div>
 
@@ -65,6 +63,11 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      <div className="mt-auto rounded-xl border border-border bg-surface p-3 text-xs text-muted-foreground">
+        <div className="mb-1 font-medium text-foreground">Mock data</div>
+        Backend wiring coming next. All values simulated.
+      </div>
     </aside>
   );
 }

@@ -187,4 +187,24 @@
   .card-hover:hover {
     transform: translateY(-2px);
   }
+
+  @keyframes logo-breathe {
+    0%, 100% {
+      filter: brightness(0) invert(1)
+        drop-shadow(0 0 6px rgba(250, 204, 21, 0.35));
+    }
+    50% {
+      filter: brightness(0) invert(1)
+        drop-shadow(0 0 14px rgba(250, 204, 21, 0.6));
+    }
+  }
+
+  .logo-breathe {
+    animation: logo-breathe 3.2s ease-in-out infinite;
+  }
+
+  .logo-breathe-hover:hover {
+    filter: brightness(0) invert(1)
+      drop-shadow(0 0 22px rgba(250, 204, 21, 0.85)) !important;
+  }
 }

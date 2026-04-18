@@ -1,11 +1,11 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+﻿import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { FileSearch, Download, Loader2, ArrowRight, Building2, FileText } from "lucide-react";
 import { BuyerShell } from "@/components/trustlens/BuyerShell";
 import { ConfidenceRing } from "@/components/trustlens/ConfidenceRing";
 import { useTenant } from "@/context/TenantContext";
-import { getVendors, getDashboardStats } from "@/lib/api";
+import { getVendors, getDashboardStats } from "@/lib/mockApi";
 import type { Vendor } from "@/lib/types";
 import { DOMAINS } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/buyer/reports")({
   head: () => ({
     meta: [
-      { title: "Reports — Verifai Trust Vault" },
+      { title: "Reports ΓÇö Verifai Trust Vault" },
       {
         name: "description",
         content:
@@ -76,7 +76,7 @@ function ReportsPage() {
   }, [services]);
 
   const onExport = () => {
-    // Simulated export — produce a quick summary blob
+    // Simulated export ΓÇö produce a quick summary blob
     const blob = new Blob(
       [
         JSON.stringify(
@@ -150,7 +150,7 @@ function ReportsPage() {
         {!services ? (
           <div className="flex items-center gap-2 rounded-xl border border-border bg-surface/40 px-5 py-10 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Generating reports…
+            Generating reportsΓÇª
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -180,7 +180,7 @@ function ReportsPage() {
                       <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                         <Building2 className="h-3 w-3" />
                         Service report
-                        <span>·</span>
+                        <span>┬╖</span>
                         <FileText className="h-3 w-3" />
                         {s.document_count} docs
                       </div>

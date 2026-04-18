@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+﻿import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { ListChecks, Loader2, ArrowRight, AlertCircle } from "lucide-react";
@@ -6,14 +6,14 @@ import { SellerShell } from "@/components/trustlens/SellerShell";
 import { ConfidenceBar } from "@/components/trustlens/ConfidenceBar";
 import { IDKBadge } from "@/components/trustlens/IDKBadge";
 import { useTenant } from "@/context/TenantContext";
-import { getVendors, getVendor } from "@/lib/api";
+import { getDocuments, getAnswers } from "@/lib/mockApi";
 import type { QueryAnswer, TrustDocument } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/seller/review/")({
   head: () => ({
     meta: [
-      { title: "Review Queue — Verifai" },
+      { title: "Review Queue ΓÇö Verifai" },
       {
         name: "description",
         content:
@@ -41,18 +41,23 @@ function ReviewQueuePage() {
     let cancelled = false;
     setRows(null);
     (async () => {
-      const vendors = await getVendors(activeTenant.id);
-      const details = await Promise.all(
-        vendors.map((v) => getVendor(v.id, activeTenant.id)),
+      const docs = await getDocuments(activeTenant.id);
+      const lists = await Promise.all(
+        docs.map(async (d) => {
+          const ans = await getAnswers(d.vendor_id);
+          return ans.map((a) => ({ answer: a, doc: d }));
+        }),
       );
       if (cancelled) return;
+      // Dedupe ΓÇö answers are vendor-scoped, so picking first doc per vendor is enough
+      const seen = new Set<string>();
       const merged: QueueRow[] = [];
-      details.forEach((vd) => {
-        const docById = new Map(vd.documents.map((d) => [d.id, d]));
-        vd.answers.forEach((a) => {
-          const doc = docById.get(a.document_id) ?? vd.documents[0];
-          if (doc) merged.push({ answer: a, doc });
-        });
+      lists.flat().forEach((r) => {
+        const key = `${r.doc.vendor_id}-${r.answer.question_id}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          merged.push(r);
+        }
       });
       setRows(merged);
     })();
@@ -85,7 +90,7 @@ function ReviewQueuePage() {
         <div className="mb-7 flex items-end justify-between gap-4">
           <div>
             <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              {activeTenant?.name ?? "—"}
+              {activeTenant?.name ?? "ΓÇö"}
             </div>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight">Review queue</h1>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -95,7 +100,7 @@ function ReviewQueuePage() {
           <div className="hidden items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-xs sm:flex">
             <ListChecks className="h-3.5 w-3.5 text-signature" />
             <span className="font-mono-num text-foreground">
-              {counts?.pending ?? "—"}
+              {counts?.pending ?? "ΓÇö"}
             </span>
             <span className="text-muted-foreground">awaiting review</span>
           </div>
@@ -135,7 +140,7 @@ function ReviewQueuePage() {
         {!filtered ? (
           <div className="flex items-center gap-2 rounded-xl border border-border bg-surface/40 px-5 py-10 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading queue…
+            Loading queueΓÇª
           </div>
         ) : filtered.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border bg-surface/40 px-5 py-12 text-center text-sm text-muted-foreground">
@@ -168,7 +173,7 @@ function ReviewQueuePage() {
                         {r.answer.domain}
                       </span>
                       <span className="text-[10px] text-muted-foreground">
-                        {r.doc.vendor_name} · {r.doc.filename}
+                        {r.doc.vendor_name} ┬╖ {r.doc.filename}
                       </span>
                     </div>
                     <div className="text-sm font-medium leading-snug">
