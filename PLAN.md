@@ -4,6 +4,12 @@
 
 Building **VerifAI**, an AI-native Vendor Risk Assessment / Supply Chain Security platform for the Ignite Hackathon. Must run entirely locally (localhost + Docker) while hitting external LLM APIs. Target audience: IT/MSP companies. Two user modes: MSP Seller (uploads Trust Packages, reviews AI answers) and Auditor/Buyer (views verified security posture). Three technical differentiators: Visual Bounding Box Verification, Delta Engine conflict detection, and strict "Information Not Found" hallucination prevention.
 
+**Scope: Route 1 (RAG + Claude cloud LLM) only.** Fine-tuned risk classifier and federated learning are explicitly out of scope for the MVP and are tracked as post-MVP stretch items. Do not introduce training loops, local LLM weights, or FL infrastructure into the Route 1 codebase.
+
+**Demo corpus (local, already downloaded):**
+- `so2_reports/` — SOC 2 Type II sample PDFs (Matillion, SysAid, `legitdoc.pdf`) → primary source for the BBox hero demo
+- `CAIQv4.0.2/` — Blank CAIQ v4.0.2 template (`CSA_CAIQ_v4.0.2_Full.xlsx`) → source for the 50-question curated bank; plus filled samples (Accredify, `star-security-questionnaire.xlsx`) usable as additional vendor evidence if XLSX ingestion is implemented
+
 **Interrogation findings:**
 - Team: React/Next.js daily drivers — full react-pdf bbox overlay is appropriate
 - **CRITICAL RISK: PyMuPDF NOT tested on local machines** — must verify before any other work
@@ -255,6 +261,39 @@ Be concise. Maximum 2 sentences. Never speculate."""
 Model: `claude-sonnet-4-6`. Confidence threshold: `0.4` (below → IDK).
 
 Fallback embeddings: if `OPENAI_API_KEY` is unavailable, swap `embedder.py` to use `sentence-transformers/all-MiniLM-L6-v2` (local, ~80MB download, no API needed).
+
+---
+
+## XLSX Extractor (Stretch Goal — `backend/services/xlsx_extractor.py`)
+
+For filled CAIQ spreadsheets (`.xlsx`). Parses rows (Question ID, Question Text, Answer, Notes/Evidence) via `openpyxl`, producing chunks with `source_type: "caiq_xlsx"` and `question_id` metadata. Spreadsheets have no visual coordinates, so `bbox` and `page_number` are `None`; the UI surfaces source as *"Acme_CAIQ.xlsx → Row CEK-02"* instead of a highlighted rectangle.
+
+**Scope decision:** MVP demo runs on SOC 2 PDFs only (BBox hero moment). XLSX ingestion is only built if time remains after the PDF pipeline, BBox overlay, Delta Engine, and demo rehearsal are all solid. Code sketch:
+
+```python
+# backend/services/xlsx_extractor.py
+import openpyxl
+
+def extract_caiq_xlsx(filepath: str, tenant_id: str, document_id: str):
+    wb = openpyxl.load_workbook(filepath, data_only=True)
+    ws = wb.active
+    chunks = []
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        q_id, q_text, answer, notes = row[0], row[1], row[2], row[3]
+        if not q_id or not q_text:
+            continue
+        chunks.append({
+            "text": f"Q ({q_id}): {q_text}\nAnswer: {answer}\nEvidence: {notes or ''}",
+            "source_type": "caiq_xlsx",
+            "question_id": q_id,
+            "document_id": document_id,
+            "tenant_id": tenant_id,
+            "bbox": None,
+            "span_bboxes": None,
+            "page_number": None,
+        })
+    return chunks
+```
 
 ---
 
