@@ -1,0 +1,190 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * TrustLens design system.
+ * Dark-only. Slate base + neon yellow signature accent.
+ * All values in oklch.
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* TrustLens semantic tokens */
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-signature: var(--signature);
+  --color-signature-foreground: var(--signature-foreground);
+  --color-signature-soft: var(--signature-soft);
+  --color-verified: var(--verified);
+  --color-warning: var(--warning);
+  --color-idk: var(--idk);
+  --color-danger: var(--danger);
+
+  --font-mono:
+    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --shadow-glow-signature: 0 0 24px oklch(0.86 0.18 95 / 0.35);
+  --shadow-bbox: 0 0 12px oklch(0.86 0.18 95 / 0.45);
+  --shadow-card: 0 1px 0 oklch(1 0 0 / 0.04) inset, 0 8px 24px oklch(0 0 0 / 0.4);
+}
+
+:root {
+  /* Force dark only */
+  color-scheme: dark;
+
+  --radius: 0.75rem;
+
+  /* Slate-950 base */
+  --background: oklch(0.18 0.02 260);
+  --foreground: oklch(0.97 0.005 250);
+
+  /* Slate-900 card */
+  --card: oklch(0.22 0.02 260);
+  --card-foreground: oklch(0.97 0.005 250);
+
+  --popover: oklch(0.22 0.02 260);
+  --popover-foreground: oklch(0.97 0.005 250);
+
+  /* Neon yellow primary */
+  --primary: oklch(0.86 0.18 95);
+  --primary-foreground: oklch(0.18 0.02 260);
+
+  --secondary: oklch(0.28 0.02 260);
+  --secondary-foreground: oklch(0.97 0.005 250);
+
+  --muted: oklch(0.28 0.02 260);
+  --muted-foreground: oklch(0.7 0.02 255);
+
+  --accent: oklch(0.32 0.025 260);
+  --accent-foreground: oklch(0.97 0.005 250);
+
+  --destructive: oklch(0.62 0.22 22);
+  --destructive-foreground: oklch(0.98 0.005 250);
+
+  --border: oklch(0.3 0.02 260);
+  --input: oklch(0.3 0.02 260);
+  --ring: oklch(0.86 0.18 95);
+
+  /* TrustLens specifics */
+  --surface: oklch(0.22 0.02 260);            /* slate-900 */
+  --surface-elevated: oklch(0.28 0.02 260);    /* slate-800 */
+  --signature: oklch(0.86 0.18 95);            /* neon yellow */
+  --signature-foreground: oklch(0.18 0.02 260);
+  --signature-soft: oklch(0.86 0.18 95 / 0.12);
+  --verified: oklch(0.78 0.16 160);            /* emerald */
+  --warning: oklch(0.82 0.16 75);              /* amber */
+  --idk: oklch(0.55 0.02 260);                 /* slate-500 */
+  --danger: oklch(0.65 0.22 18);               /* rose */
+}
+
+/* Dark class kept for shadcn compatibility but identical to root */
+.dark {
+  color-scheme: dark;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html,
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  body {
+    font-family:
+      Inter,
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      "Segoe UI",
+      sans-serif;
+    letter-spacing: -0.005em;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    letter-spacing: -0.02em;
+    font-weight: 500;
+  }
+}
+
+@layer utilities {
+  .font-mono-num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  .bg-hero-radial {
+    background-image: radial-gradient(
+      circle at top,
+      oklch(0.86 0.18 95 / 0.08),
+      transparent 50%
+    );
+  }
+
+  .bg-hero-radial-strong {
+    background-image:
+      radial-gradient(circle at 20% 0%, oklch(0.86 0.18 95 / 0.12), transparent 45%),
+      radial-gradient(circle at 80% 100%, oklch(0.86 0.18 95 / 0.06), transparent 45%);
+  }
+
+  .signature-edge {
+    position: relative;
+  }
+  .signature-edge::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 8%;
+    bottom: 8%;
+    width: 2px;
+    background: var(--color-signature);
+    box-shadow: var(--shadow-glow-signature);
+    border-radius: 2px;
+  }
+
+  .card-hover {
+    transition:
+      transform 150ms ease,
+      border-color 150ms ease,
+      box-shadow 150ms ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-2px);
+  }
+}

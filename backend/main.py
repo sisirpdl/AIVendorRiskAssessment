@@ -20,7 +20,11 @@ app = FastAPI(title="AI Vendor Risk Assessment", version="0.1.0", lifespan=lifes
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:8080",
+        "http://localhost:3000",
+        "http://localhost:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
