@@ -15,8 +15,8 @@ import {
 } from "lucide-react";
 import { SellerShell } from "@/components/trustlens/SellerShell";
 import { useTenant } from "@/context/TenantContext";
-import { getDocuments, uploadDocument } from "@/lib/api";
-import type { TrustDocument } from "@/lib/types";
+import { getDocuments, getVendors, uploadDocument } from "@/lib/api";
+import type { TrustDocument, Vendor } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/seller/upload")({
@@ -54,12 +54,23 @@ function UploadPage() {
   const [targetDocId, setTargetDocId] = useState<string | null>(null);
   const [uploadSummary, setUploadSummary] = useState<{ pages: number; chunks: number } | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [targetVendorId, setTargetVendorId] = useState<string>(""); // "" = new vendor from filename
+  // Multi-file queue state
+  const [queueTotal, setQueueTotal] = useState(0);
+  const [queueIndex, setQueueIndex] = useState(0); // 1-based while uploading, N on completion
 
   const refreshRecent = useCallback(() => {
     if (!activeTenant) return;
-    getDocuments(activeTenant.id)
-      .then((d) => setRecentDocs(d.slice(0, 4)))
-      .catch(() => setRecentDocs([]));
+    Promise.all([getDocuments(activeTenant.id), getVendors(activeTenant.id)])
+      .then(([docs, vs]) => {
+        setRecentDocs(docs.slice(0, 4));
+        setVendors(vs);
+      })
+      .catch(() => {
+        setRecentDocs([]);
+        setVendors([]);
+      });
   }, [activeTenant]);
 
   useEffect(() => {
@@ -67,19 +78,21 @@ function UploadPage() {
   }, [refreshRecent]);
 
   const startPipeline = useCallback(
-    (file: File) => {
-      if (!activeTenant) return;
-      setFilename(file.name);
+    async (files: File[]) => {
+      if (!activeTenant || files.length === 0) return;
       setStage("uploading");
       setProgress(0);
       setErrorMsg(null);
       setTargetDocId(null);
       setUploadSummary(null);
+      setQueueTotal(files.length);
+      setQueueIndex(0);
 
-      // Visual pipeline: advance stage on a timer while the real request flies.
       const visual: Stage[] = ["uploading", "parsing", "embedding", "answering"];
-      let vi = 0;
       let stopped = false;
+
+      // Visual pipeline: advance stage on a timer while the real requests fly.
+      let vi = 0;
       const tickStage = () => {
         if (stopped) return;
         setStage(visual[vi]);
@@ -100,38 +113,63 @@ function UploadPage() {
       };
       tickStage();
 
-      uploadDocument(file, activeTenant.id)
-        .then((result) => {
-          stopped = true;
-          setTargetDocId(result.document_id);
-          setUploadSummary({ pages: result.page_count, chunks: result.chunk_count });
-          setProgress(100);
-          setStage("done");
-          refreshRecent();
-        })
-        .catch((err: unknown) => {
-          stopped = true;
-          const msg = err instanceof Error ? err.message : String(err);
-          setErrorMsg(msg);
-          setStage("failed");
-        });
+      // If no vendor selected and >1 file dropped, derive a shared slug from the
+      // first file so subsequent files attach to the same vendor rather than
+      // creating N separate vendors.
+      let sharedVendor = targetVendorId;
+      let lastDocId: string | null = null;
+      let totalPages = 0;
+      let totalChunks = 0;
+
+      try {
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          setFilename(file.name);
+          setQueueIndex(i + 1);
+          const result = await uploadDocument(
+            file,
+            activeTenant.id,
+            sharedVendor || undefined,
+          );
+          if (!sharedVendor) sharedVendor = result.vendor_id;
+          lastDocId = result.document_id;
+          totalPages += result.page_count;
+          totalChunks += result.chunk_count;
+        }
+        stopped = true;
+        if (lastDocId) setTargetDocId(lastDocId);
+        setUploadSummary({ pages: totalPages, chunks: totalChunks });
+        setProgress(100);
+        setStage("done");
+        refreshRecent();
+      } catch (err: unknown) {
+        stopped = true;
+        const msg = err instanceof Error ? err.message : String(err);
+        setErrorMsg(msg);
+        setStage("failed");
+      }
     },
-    [activeTenant, refreshRecent],
+    [activeTenant, refreshRecent, targetVendorId],
   );
+
+  const filesFromList = (list: FileList | null | undefined): File[] => {
+    if (!list) return [];
+    return Array.from(list).filter((f) => f.name.toLowerCase().endsWith(".pdf"));
+  };
 
   const onDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
-      const file = e.dataTransfer.files?.[0];
-      if (file) startPipeline(file);
+      const files = filesFromList(e.dataTransfer.files);
+      if (files.length) startPipeline(files);
     },
     [startPipeline],
   );
 
   const onPick = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) startPipeline(file);
+      const files = filesFromList(e.target.files);
+      if (files.length) startPipeline(files);
     },
     [startPipeline],
   );
@@ -143,6 +181,8 @@ function UploadPage() {
     setTargetDocId(null);
     setUploadSummary(null);
     setErrorMsg(null);
+    setQueueTotal(0);
+    setQueueIndex(0);
   };
 
   const goReview = () => {
@@ -167,6 +207,31 @@ function UploadPage() {
           </p>
         </div>
 
+        {stage === "idle" && vendors.length > 0 && (
+          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface/60 px-4 py-3">
+            <label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              Attach to
+            </label>
+            <select
+              value={targetVendorId}
+              onChange={(e) => setTargetVendorId(e.target.value)}
+              className="h-8 rounded-md border border-border bg-surface px-3 text-xs text-foreground outline-none focus:border-signature/60 focus:ring-1 focus:ring-signature/30"
+            >
+              <option value="">New vendor (from filename)</option>
+              {vendors.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name} ({v.document_count} {v.document_count === 1 ? "doc" : "docs"})
+                </option>
+              ))}
+            </select>
+            {targetVendorId && (
+              <span className="text-[11px] text-muted-foreground">
+                Existing answers will be re-generated using the pooled evidence from all uploaded documents.
+              </span>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <AnimatePresence mode="wait">
@@ -185,6 +250,7 @@ function UploadPage() {
                     ref={inputRef}
                     type="file"
                     accept=".pdf"
+                    multiple
                     onChange={onPick}
                     className="hidden"
                   />
@@ -193,8 +259,8 @@ function UploadPage() {
                   </div>
                   <h2 className="text-lg font-semibold">Drop your trust package here</h2>
                   <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">
-                    PDF only for this release. Parsing, embedding, and answer generation happen
-                    automatically on the backend.
+                    PDFs only. Drop multiple files at once to pool evidence across them —
+                    SOC 2 + pentest + DPA all feed one vendor profile.
                   </p>
                   <button
                     type="button"
@@ -224,10 +290,14 @@ function UploadPage() {
                         <div className="truncate text-sm font-medium">{filename}</div>
                         <div className="text-xs text-muted-foreground">
                           {stage === "done"
-                            ? "Ready for review"
+                            ? queueTotal > 1
+                              ? `Ready for review · ${queueTotal} files indexed`
+                              : "Ready for review"
                             : stage === "failed"
                               ? "Upload failed"
-                              : "Processing…"}
+                              : queueTotal > 1
+                                ? `Processing file ${queueIndex} of ${queueTotal}…`
+                                : "Processing…"}
                         </div>
                       </div>
                     </div>

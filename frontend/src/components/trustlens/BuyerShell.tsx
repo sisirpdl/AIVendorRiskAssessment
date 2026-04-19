@@ -1,14 +1,12 @@
-﻿import type { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Link, useLocation } from "@tanstack/react-router";
-import { LayoutGrid, AlertTriangle, FileSearch } from "lucide-react";
+import { LayoutGrid } from "lucide-react";
 import { TenantSwitcher } from "./TenantSwitcher";
 import { Logo } from "./Logo";
 import { cn } from "@/lib/utils";
 
 const NAV = [
   { to: "/buyer", label: "Trust Vault", icon: LayoutGrid, exact: true },
-  { to: "/buyer/alerts", label: "Alerts", icon: AlertTriangle },
-  { to: "/buyer/reports", label: "Reports", icon: FileSearch },
 ];
 
 export function BuyerShell({ children }: { children: ReactNode }) {

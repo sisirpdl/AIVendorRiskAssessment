@@ -1,4 +1,4 @@
-﻿import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
 import { TenantProvider } from "@/context/TenantContext";
@@ -30,13 +30,13 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Verifai ΓÇö Verifiable AI for Vendor Security" },
+      { title: "Verifai — Verifiable AI for Vendor Security" },
       {
         name: "description",
         content:
           "Verifai turns vendor security questionnaires into verifiable, evidence-backed answers. Built for IT MSPs and their auditors.",
       },
-      { property: "og:title", content: "Verifai ΓÇö Verifiable AI for Vendor Security" },
+      { property: "og:title", content: "Verifai — Verifiable AI for Vendor Security" },
       {
         property: "og:description",
         content:

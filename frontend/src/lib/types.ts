@@ -51,16 +51,30 @@ export interface Vendor {
   tenant_id: string;
 }
 
+export type ConflictType = "idk_flip" | "keyword_flip" | "confidence_drop" | "semantic";
+export type ConflictSeverity = "high" | "medium" | "low";
+export type ConflictStatus = "unresolved" | "accepted_new" | "accepted_old";
+
 export interface Conflict {
   id: string;
   vendor_id: string;
+  vendor_name: string;
+  question_id: string;
   question: string;
-  old_answer: string;
-  new_answer: string;
-  old_evidence: EvidenceChunk;
-  new_evidence: EvidenceChunk;
+  domain: string;
+  old_answer: string | null;
+  new_answer: string | null;
+  old_verdict: Verdict;
+  new_verdict: Verdict;
+  old_confidence: number;
+  new_confidence: number;
+  old_document_id: string;
+  new_document_id: string;
+  conflict_type: ConflictType;
+  severity: ConflictSeverity;
   confidence_delta: number;
-  status: "unresolved" | "accepted_new" | "accepted_old";
+  status: ConflictStatus;
+  created_at: string | null;
 }
 
 export interface Tenant {

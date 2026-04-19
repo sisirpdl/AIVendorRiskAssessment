@@ -1,14 +1,52 @@
-import type { Conflict, QueryAnswer, Tenant, TrustDocument, Vendor } from "./types";
+import type {
+  Conflict,
+  ConflictSeverity,
+  ConflictStatus,
+  ConflictType,
+  QueryAnswer,
+  Tenant,
+  TrustDocument,
+  Vendor,
+  Verdict,
+} from "./types";
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const API_BASE_CANDIDATES = [
+  import.meta.env.VITE_API_URL,
+  "http://127.0.0.1:8000",
+  "http://localhost:8000",
+].filter((value): value is string => Boolean(value));
+
+let workingApiBase: string | null = null;
+
+function isNetworkError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  return /NetworkError|Failed to fetch|ERR_ALPN_NEGOTIATION_FAILED/i.test(error.message);
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, init);
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`${res.status} ${res.statusText} ${path}${body ? ` — ${body}` : ""}`);
+  const bases = workingApiBase ? [workingApiBase] : API_BASE_CANDIDATES;
+  let lastError: unknown = null;
+
+  for (const base of bases) {
+    try {
+      const res = await fetch(`${base}${path}`, init);
+      workingApiBase = base;
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw new Error(`${res.status} ${res.statusText} ${path}${body ? ` — ${body}` : ""}`);
+      }
+      return res.json() as Promise<T>;
+    } catch (error) {
+      lastError = error;
+      if (!isNetworkError(error)) {
+        throw error;
+      }
+    }
   }
-  return res.json() as Promise<T>;
+
+  throw lastError instanceof Error ? lastError : new Error("Request failed");
 }
 
 // ---------- Health ----------
@@ -111,7 +149,13 @@ export async function uploadDocument(
 }
 
 export function documentFileUrl(documentId: string): string {
-  return `${BASE_URL}/api/documents/${documentId}/file`;
+  const base = workingApiBase ?? API_BASE_CANDIDATES[0] ?? "http://127.0.0.1:8000";
+  return `${base}/api/documents/${documentId}/file`;
+}
+
+export function shareSourceZipUrl(token: string): string {
+  const base = workingApiBase ?? API_BASE_CANDIDATES[0] ?? "http://127.0.0.1:8000";
+  return `${base}/api/share/${encodeURIComponent(token)}/source.zip`;
 }
 
 export async function deleteDocument(documentId: string, tenantId: string): Promise<void> {
@@ -127,6 +171,27 @@ export interface CachedAnswersResponse {
   status: "processing" | "answering" | "ready" | "failed";
   total: number;
   answers: QueryAnswer[];
+}
+
+export interface AnswerPatchBody {
+  verdict: "YES" | "NO" | "N_A";
+  answer: string;
+}
+
+export async function updateAnswer(
+  documentId: string,
+  questionId: string,
+  tenantId: string,
+  patch: AnswerPatchBody,
+): Promise<void> {
+  await request(
+    `/api/answers/${encodeURIComponent(documentId)}/${encodeURIComponent(questionId)}?tenant_id=${encodeURIComponent(tenantId)}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    },
+  );
 }
 
 export function getCachedAnswers(
@@ -281,15 +346,21 @@ interface BackendConflict {
   id: string;
   tenant_id: string;
   vendor_id: string;
+  vendor_name: string;
   question_id: string;
+  question_text: string;
+  domain: string;
   old_document_id: string;
   new_document_id: string;
   old_answer: string | null;
   new_answer: string | null;
+  old_verdict: Verdict;
+  new_verdict: Verdict;
   old_confidence: number;
   new_confidence: number;
-  conflict_type: string;
-  status: string;
+  conflict_type: ConflictType;
+  severity: ConflictSeverity;
+  status: ConflictStatus;
   created_at: string | null;
 }
 
@@ -297,39 +368,42 @@ export async function getConflicts(tenantId: string): Promise<Conflict[]> {
   const res = await request<{ conflicts: BackendConflict[] }>(
     `/api/conflicts?tenant_id=${encodeURIComponent(tenantId)}`,
   );
-  // Until Delta Engine is wired in Phase 2, the backend returns no conflicts.
-  // Map the sparse backend shape into the richer UI Conflict shape with placeholders.
   return res.conflicts.map((c) => ({
     id: c.id,
     vendor_id: c.vendor_id,
-    question: c.question_id,
-    old_answer: c.old_answer ?? "",
-    new_answer: c.new_answer ?? "",
-    old_evidence: {
-      chunk_id: `${c.id}-old`,
-      document_id: c.old_document_id,
-      page_number: 1,
-      text: c.old_answer ?? "",
-      bbox: { x0: 0, y0: 0, x1: 0, y1: 0 },
-      span_bboxes: [],
-      page_width: 612,
-      page_height: 792,
-      relevance_score: 0,
-    },
-    new_evidence: {
-      chunk_id: `${c.id}-new`,
-      document_id: c.new_document_id,
-      page_number: 1,
-      text: c.new_answer ?? "",
-      bbox: { x0: 0, y0: 0, x1: 0, y1: 0 },
-      span_bboxes: [],
-      page_width: 612,
-      page_height: 792,
-      relevance_score: 0,
-    },
+    vendor_name: c.vendor_name,
+    question_id: c.question_id,
+    question: c.question_text,
+    domain: c.domain,
+    old_answer: c.old_answer,
+    new_answer: c.new_answer,
+    old_verdict: c.old_verdict,
+    new_verdict: c.new_verdict,
+    old_confidence: c.old_confidence,
+    new_confidence: c.new_confidence,
+    old_document_id: c.old_document_id,
+    new_document_id: c.new_document_id,
+    conflict_type: c.conflict_type,
+    severity: c.severity,
     confidence_delta: c.new_confidence - c.old_confidence,
-    status: c.status === "accepted_new" ? "accepted_new" : c.status === "accepted_old" ? "accepted_old" : "unresolved",
+    status: c.status,
+    created_at: c.created_at,
   }));
+}
+
+export async function resolveConflict(
+  conflictId: string,
+  tenantId: string,
+  status: ConflictStatus,
+): Promise<void> {
+  await request(
+    `/api/conflicts/${encodeURIComponent(conflictId)}?tenant_id=${encodeURIComponent(tenantId)}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    },
+  );
 }
 
 // ---------- Share links ----------
@@ -357,6 +431,12 @@ export interface SharedReport {
     page_count: number;
     created_at: string | null;
   };
+  documents: {
+    id: string;
+    filename: string;
+    page_count: number;
+    created_at: string | null;
+  }[];
   total: number;
   answers: QueryAnswer[];
 }
@@ -365,6 +445,7 @@ export async function getSharedReport(token: string): Promise<SharedReport> {
   const raw = await request<{
     token: string;
     document: SharedReport["document"];
+    documents?: SharedReport["documents"];
     total: number;
     answers: Array<{
       question_id: string;
@@ -383,6 +464,7 @@ export async function getSharedReport(token: string): Promise<SharedReport> {
   return {
     token: raw.token,
     document: raw.document,
+    documents: raw.documents ?? [raw.document],
     total: raw.total,
     answers: raw.answers.map((a) => ({
       ...a,

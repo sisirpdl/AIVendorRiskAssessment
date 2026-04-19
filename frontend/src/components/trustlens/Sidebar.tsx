@@ -1,11 +1,9 @@
-﻿import { Link, useLocation } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Upload,
-  Building2,
   ListChecks,
   GitBranch,
-  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "./Logo";
@@ -20,10 +18,8 @@ type NavItem = {
 const ITEMS: NavItem[] = [
   { to: "/seller", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/seller/upload", label: "Upload", icon: Upload },
-  { to: "/seller/services", label: "Services", icon: Building2 },
   { to: "/seller/review", label: "Review Queue", icon: ListChecks },
   { to: "/seller/conflicts", label: "Conflicts", icon: GitBranch },
-  { to: "/seller/settings", label: "Settings", icon: Settings },
 ];
 
 export function Sidebar() {
@@ -63,11 +59,6 @@ export function Sidebar() {
           );
         })}
       </nav>
-
-      <div className="mt-auto rounded-xl border border-border bg-surface p-3 text-xs text-muted-foreground">
-        <div className="mb-1 font-medium text-foreground">Mock data</div>
-        Backend wiring coming next. All values simulated.
-      </div>
     </aside>
   );
 }

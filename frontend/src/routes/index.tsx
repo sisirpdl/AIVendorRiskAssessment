@@ -1,4 +1,4 @@
-﻿import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { Building2, ShieldCheck, ArrowRight } from "lucide-react";
 import { Logo } from "@/components/trustlens/Logo";
@@ -6,7 +6,7 @@ import { Logo } from "@/components/trustlens/Logo";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Verifai ΓÇö Verifiable AI for Vendor Security" },
+      { title: "Verifai — Verifiable AI for Vendor Security" },
       {
         name: "description",
         content:

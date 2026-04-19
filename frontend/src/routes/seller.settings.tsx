@@ -1,4 +1,4 @@
-﻿import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Settings as SettingsIcon, Building2, Bell, Sparkles, Shield, Check } from "lucide-react";
@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/seller/settings")({
   head: () => ({
     meta: [
-      { title: "Settings ΓÇö Verifai" },
+      { title: "Settings — Verifai" },
       {
         name: "description",
         content: "Tenant preferences, notifications, and AI publication policy.",
@@ -37,7 +37,7 @@ function SettingsPage() {
       <div className="px-8 py-7">
         <div className="mb-7">
           <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            {activeTenant?.name ?? "ΓÇö"}
+            {activeTenant?.name ?? "—"}
           </div>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">Settings</h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -49,8 +49,8 @@ function SettingsPage() {
           {/* Tenant info */}
           <Card icon={<Building2 className="h-4 w-4" />} title="Tenant">
             <div className="space-y-3">
-              <Field label="Active tenant" value={activeTenant?.name ?? "ΓÇö"} />
-              <Field label="Industry" value={activeTenant?.industry ?? "ΓÇö"} />
+              <Field label="Active tenant" value={activeTenant?.name ?? "—"} />
+              <Field label="Industry" value={activeTenant?.industry ?? "—"} />
               <Field
                 label="Tenants on plan"
                 value={`${tenants.length} of 25`}

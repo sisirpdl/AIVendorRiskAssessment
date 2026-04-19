@@ -11,9 +11,11 @@ import {
   AlertTriangle,
   XCircle,
   Trash2,
+  Send,
 } from "lucide-react";
 import { BuyerShell } from "@/components/trustlens/BuyerShell";
 import { ConfidenceRing } from "@/components/trustlens/ConfidenceRing";
+import { RequestQuestionnaireDialog } from "@/components/trustlens/RequestQuestionnaireDialog";
 import { useTenant } from "@/context/TenantContext";
 import { getVendors } from "@/lib/api";
 import { getImports, importedVendorToVendor, isImportedVendorId, removeImport, tokenFromImportedId } from "@/lib/imports";
@@ -86,34 +88,63 @@ const VENDOR_TINTS = [
 
 function BuyerVault() {
   const { activeTenant } = useTenant();
+  const [requestOpen, setRequestOpen] = useState(false);
   return (
     <BuyerShell>
       <div className="mx-auto max-w-7xl px-6 py-8">
-        <Header tenantName={activeTenant?.name} industry={activeTenant?.industry} />
+        <Header
+          tenantName={activeTenant?.name}
+          industry={activeTenant?.industry}
+          onRequestClick={() => setRequestOpen(true)}
+        />
         <VendorGrid tenantId={activeTenant?.id} />
       </div>
+      {requestOpen && (
+        <RequestQuestionnaireDialog
+          tenantName={activeTenant?.name}
+          onClose={() => setRequestOpen(false)}
+        />
+      )}
     </BuyerShell>
   );
 }
 
-function Header({ tenantName, industry }: { tenantName?: string; industry?: string }) {
+function Header({
+  tenantName,
+  industry,
+  onRequestClick,
+}: {
+  tenantName?: string;
+  industry?: string;
+  onRequestClick: () => void;
+}) {
   return (
-    <div className="mb-8">
-      <div className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-        Trust Vault
+    <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <div className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+          Trust Vault
+        </div>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight">
+          {tenantName ?? "—"}
+          {industry && (
+            <span className="ml-3 align-middle text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              {industry}
+            </span>
+          )}
+        </h1>
+        <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+          Every service score is grounded in source PDFs with bounding-box evidence.
+          No hallucinations.
+        </p>
       </div>
-      <h1 className="mt-1 text-3xl font-semibold tracking-tight">
-        {tenantName ?? "—"}
-        {industry && (
-          <span className="ml-3 align-middle text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            {industry}
-          </span>
-        )}
-      </h1>
-      <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-        Every service score is grounded in source PDFs with bounding-box evidence.
-        No hallucinations.
-      </p>
+      <button
+        type="button"
+        onClick={onRequestClick}
+        className="inline-flex items-center gap-2 rounded-md bg-signature px-3.5 py-2 text-xs font-semibold tracking-wide text-signature-foreground transition-colors hover:bg-signature/90"
+      >
+        <Send className="h-3.5 w-3.5" />
+        Send Questionnaire
+      </button>
     </div>
   );
 }
@@ -323,24 +354,10 @@ function VendorCard({
   const isImported = isImportedVendorId(vendor.id);
   const shareToken = tokenFromImportedId(vendor.id);
   const cardClasses =
-    "group relative flex h-full flex-col rounded-2xl border border-border bg-surface p-5 shadow-card transition-all duration-200 hover:-translate-y-1 hover:border-signature/50 hover:shadow-[0_0_0_1px_rgba(250,204,21,0.2),0_18px_50px_-20px_rgba(250,204,21,0.3)]";
+    "flex h-full flex-col rounded-2xl border border-border bg-surface p-5 shadow-card transition-all duration-200 group-hover:-translate-y-1 group-hover:border-signature/50 group-hover:shadow-[0_0_0_1px_rgba(250,204,21,0.2),0_18px_50px_-20px_rgba(250,204,21,0.3)]";
 
   const body = (
     <>
-      {isImported && onRemoveImport && (
-        <button
-          type="button"
-          aria-label="Remove imported vendor"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onRemoveImport(vendor.id);
-          }}
-          className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-md border border-border bg-surface text-muted-foreground opacity-0 transition-all hover:border-danger/40 hover:text-danger group-hover:opacity-100"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
-      )}
       {/* Top row: logo + identity + ring */}
       <div className="flex items-start gap-4">
         <div
@@ -433,17 +450,30 @@ function VendorCard({
     </>
   );
 
-  if (isImported && shareToken) {
-    return (
+  const link =
+    isImported && shareToken ? (
       <Link to="/share/$token" params={{ token: shareToken }} className={cardClasses}>
         {body}
       </Link>
+    ) : (
+      <Link to="/buyer/assess/$vendorId" params={{ vendorId: vendor.id }} className={cardClasses}>
+        {body}
+      </Link>
     );
-  }
 
   return (
-    <Link to="/buyer/assess/$vendorId" params={{ vendorId: vendor.id }} className={cardClasses}>
-      {body}
-    </Link>
+    <div className="group relative h-full">
+      {link}
+      {isImported && onRemoveImport && (
+        <button
+          type="button"
+          aria-label="Remove imported vendor"
+          onClick={() => onRemoveImport(vendor.id)}
+          className="absolute right-3 top-3 z-10 flex h-7 w-7 items-center justify-center rounded-md border border-border bg-surface text-muted-foreground opacity-0 transition-all hover:border-danger/40 hover:text-danger group-hover:opacity-100"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
   );
 }

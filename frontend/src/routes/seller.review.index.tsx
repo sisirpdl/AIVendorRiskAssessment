@@ -1,4 +1,4 @@
-﻿import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { ListChecks, Loader2, ArrowRight, AlertCircle } from "lucide-react";
@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/seller/review/")({
   head: () => ({
     meta: [
-      { title: "Review Queue ΓÇö Verifai" },
+      { title: "Review Queue — Verifai" },
       {
         name: "description",
         content:
@@ -49,7 +49,7 @@ function ReviewQueuePage() {
         }),
       );
       if (cancelled) return;
-      // Dedupe ΓÇö answers are vendor-scoped, so picking first doc per vendor is enough
+      // Dedupe — answers are vendor-scoped, so picking first doc per vendor is enough
       const seen = new Set<string>();
       const merged: QueueRow[] = [];
       lists.flat().forEach((r) => {
@@ -90,7 +90,7 @@ function ReviewQueuePage() {
         <div className="mb-7 flex items-end justify-between gap-4">
           <div>
             <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              {activeTenant?.name ?? "ΓÇö"}
+              {activeTenant?.name ?? "—"}
             </div>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight">Review queue</h1>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -100,7 +100,7 @@ function ReviewQueuePage() {
           <div className="hidden items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-xs sm:flex">
             <ListChecks className="h-3.5 w-3.5 text-signature" />
             <span className="font-mono-num text-foreground">
-              {counts?.pending ?? "ΓÇö"}
+              {counts?.pending ?? "—"}
             </span>
             <span className="text-muted-foreground">awaiting review</span>
           </div>
@@ -140,7 +140,7 @@ function ReviewQueuePage() {
         {!filtered ? (
           <div className="flex items-center gap-2 rounded-xl border border-border bg-surface/40 px-5 py-10 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading queueΓÇª
+            Loading queue…
           </div>
         ) : filtered.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border bg-surface/40 px-5 py-12 text-center text-sm text-muted-foreground">

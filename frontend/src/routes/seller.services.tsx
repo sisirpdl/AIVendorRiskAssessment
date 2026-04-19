@@ -1,4 +1,4 @@
-﻿import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Search, Building2, FileText, ArrowRight, Loader2 } from "lucide-react";
@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/seller/services")({
   head: () => ({
     meta: [
-      { title: "Services ΓÇö Verifai" },
+      { title: "Services — Verifai" },
       {
         name: "description",
         content:
@@ -57,7 +57,7 @@ function ServicesPage() {
         <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
           <div>
             <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              {activeTenant?.name ?? "ΓÇö"}
+              {activeTenant?.name ?? "—"}
             </div>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight">Services</h1>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -71,7 +71,7 @@ function ServicesPage() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search servicesΓÇª"
+              placeholder="Search services…"
               className="h-10 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-signature/60 focus:ring-2 focus:ring-signature/20"
             />
           </div>
@@ -80,7 +80,7 @@ function ServicesPage() {
         {!filtered ? (
           <div className="flex items-center gap-2 rounded-xl border border-border bg-surface/40 px-5 py-10 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading servicesΓÇª
+            Loading services…
           </div>
         ) : filtered.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border bg-surface/40 px-5 py-12 text-center text-sm text-muted-foreground">

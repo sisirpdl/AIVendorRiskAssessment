@@ -167,29 +167,6 @@ export function AnswerRow({ answer, isActive, onClick, editable, onEditSave }: A
           className="overflow-hidden border-t border-border/40 bg-surface/40"
         >
           <div className="space-y-3 px-5 py-4">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                Verdict
-              </span>
-              {(["YES", "NO", "N_A"] as Verdict[]).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEditVerdict(v);
-                  }}
-                  className={cn(
-                    "rounded-sm border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider transition-colors",
-                    editVerdict === v
-                      ? VERDICT_STYLES[v]
-                      : "border-border bg-surface text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {VERDICT_LABEL[v]}
-                </button>
-              ))}
-            </div>
             <textarea
               ref={textareaRef}
               value={editText}
@@ -199,27 +176,53 @@ export function AnswerRow({ answer, isActive, onClick, editable, onEditSave }: A
               placeholder="Enter the verified answer…"
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/60 focus:border-signature/50 focus:outline-none focus:ring-1 focus:ring-signature/30"
             />
-            <div className="flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  cancelEdit();
-                }}
-                className="rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  saveEdit();
-                }}
-                className="rounded-md bg-signature px-3 py-1.5 text-xs font-semibold text-signature-foreground transition-colors hover:bg-signature/90"
-              >
-                Save
-              </button>
+            <div className="flex items-center justify-end gap-3">
+              <div className="inline-flex items-center gap-2">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Verdict
+                </span>
+                {(["YES", "NO", "N_A"] as Verdict[]).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditVerdict(v);
+                    }}
+                    className={cn(
+                      "rounded-sm border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider transition-colors",
+                      editVerdict === v
+                        ? VERDICT_STYLES[v]
+                        : "border-border bg-surface text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {VERDICT_LABEL[v]}
+                  </button>
+                ))}
+              </div>
+              <span className="h-4 w-px bg-border" aria-hidden />
+              <div className="inline-flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    cancelEdit();
+                  }}
+                  className="rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    saveEdit();
+                  }}
+                  className="rounded-md bg-signature px-3 py-1.5 text-xs font-semibold text-signature-foreground transition-colors hover:bg-signature/90"
+                >
+                  Save
+                </button>
+              </div>
             </div>
           </div>
         </motion.div>

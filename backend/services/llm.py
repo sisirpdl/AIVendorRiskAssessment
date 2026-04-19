@@ -6,24 +6,26 @@ from config import ANTHROPIC_API_KEY, CLAUDE_MODEL, IDK_CONFIDENCE_THRESHOLD
 
 IDK_TOKEN = "INFORMATION_NOT_FOUND"
 VERDICTS = ("YES", "NO", "N_A")
-# Questions are boolean-ish CAIQ controls. Below this floor even a YES/NO is unsafe.
-MIN_CONFIDENCE_FOR_VERDICT = 0.25
+MIN_CONFIDENCE_FOR_VERDICT = 0.1
 
-SYSTEM_PROMPT = f"""You are a strict security compliance analyst.
-Answer ONLY from the provided context. Never use prior knowledge.
-If the context does not contain enough information, your answer must be exactly: {IDK_TOKEN}
-Be concise. Maximum 2 sentences. Never speculate.
+SYSTEM_PROMPT = f"""You are a security compliance analyst reviewing a vendor's documents.
+Answer ONLY from the provided context. Never invent facts that aren't supported.
+
+Commit to YES or NO when the context contains SUBSTANTIVE language describing the control — prose that explains the practice, not just the topic name.
+
+A section heading, table-of-contents entry, topic index, list item that only names a control, or page-number reference is NOT evidence. If the only supporting text in the context is a heading/TOC entry (e.g., "3.2 Encryption at Rest ......... 15"), the correct verdict is N_A.
+
+Use VERDICT=N_A when the context is silent, or when it only mentions the topic without describing the control.
+Confidence should reflect how directly the prose answers the question (0.3–0.6 for indirect but substantive evidence, 0.7+ for explicit descriptions).
+
+Be concise. Maximum 2 sentences in ANSWER. Never speculate beyond what the context supports.
 
 Output format (exactly three lines, in order):
 VERDICT: YES | NO | N_A
 ANSWER: <a single short sentence or {IDK_TOKEN}>
-CONFIDENCE: <a number between 0.0 and 1.0 reflecting how well the context supports your answer>
+CONFIDENCE: <a number between 0.0 and 1.0>
 
-Rules:
-- VERDICT=YES when the context shows the vendor meets/does the control.
-- VERDICT=NO when the context shows the vendor does NOT meet/do the control.
-- VERDICT=N_A when the context is silent or insufficient to decide.
-- Use {IDK_TOKEN} as the ANSWER whenever VERDICT=N_A."""
+When VERDICT=N_A, ANSWER must be exactly {IDK_TOKEN}."""
 
 _client = None
 
@@ -71,14 +73,27 @@ def _parse_response(raw: str) -> tuple[str, str | None, float]:
     return verdict, answer, confidence
 
 
-def answer_question(question: str, context_chunks: list[dict]) -> dict:
-    """Returns {verdict, answer, confidence, idk, raw, source}.
+def answer_question(
+    question: str,
+    context_chunks: list[dict],
+    guidance: str | None = None,
+) -> dict:
+    """Returns {verdict, answer, confidence, idk, raw, source, model}.
 
     verdict ∈ {YES, NO, N_A}. idk=True when verdict=N_A or answer=INFORMATION_NOT_FOUND
     or confidence falls below the floor for a stated verdict.
+
+    `guidance` is a per-question keyword hint used on the retrieval side only
+    (embedded alongside the question). It is deliberately NOT passed to Claude,
+    because priming the model with an explicit keyword list makes it over-eager
+    to cite any chunk containing those words — including TOC entries.
     """
+    _ = guidance  # retained for signature compat; used upstream in retrieval
     if not context_chunks:
-        return {"verdict": "N_A", "answer": None, "confidence": 0.0, "idk": True, "raw": "", "source": "pdf"}
+        return {
+            "verdict": "N_A", "answer": None, "confidence": 0.0, "idk": True,
+            "raw": "", "source": "pdf", "model": CLAUDE_MODEL,
+        }
 
     user_prompt = (
         f"Context:\n{_format_context(context_chunks)}\n\n"
@@ -94,18 +109,14 @@ def answer_question(question: str, context_chunks: list[dict]) -> dict:
     raw = resp.content[0].text
     verdict, answer, confidence = _parse_response(raw)
 
-    unsupported = (
+    # Keep the verdict whenever Claude commits to YES or NO unless confidence is
+    # essentially zero. Only fall back to N_A when Claude itself refused.
+    explicitly_refused = (
         verdict == "N_A"
         or (answer is not None and answer.strip() == IDK_TOKEN)
-        or confidence < MIN_CONFIDENCE_FOR_VERDICT
     )
-    # Keep the old strict threshold as a second safety net for verdicts that
-    # slip through with vanishingly low confidence.
-    if verdict in ("YES", "NO") and confidence < IDK_CONFIDENCE_THRESHOLD and confidence >= MIN_CONFIDENCE_FOR_VERDICT:
-        # Low-confidence verdict: keep it but flag as borderline by lowering confidence we trust.
-        pass
-
-    idk = unsupported
+    too_weak = confidence < MIN_CONFIDENCE_FOR_VERDICT
+    idk = explicitly_refused or too_weak
     return {
         "verdict": "N_A" if idk else verdict,
         "answer": None if idk else answer,
@@ -113,4 +124,5 @@ def answer_question(question: str, context_chunks: list[dict]) -> dict:
         "idk": idk,
         "raw": raw,
         "source": "pdf",
+        "model": CLAUDE_MODEL,
     }

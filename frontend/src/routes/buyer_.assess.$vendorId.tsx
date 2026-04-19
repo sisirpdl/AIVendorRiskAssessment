@@ -7,6 +7,7 @@ import { ConfidenceRing } from "@/components/trustlens/ConfidenceRing";
 import { AnswerRow } from "@/components/trustlens/AnswerRow";
 import { PDFPreview } from "@/components/trustlens/PDFPreview";
 import { CitationsPanel } from "@/components/trustlens/CitationsPanel";
+import { EvidenceSwitcher } from "@/components/trustlens/EvidenceSwitcher";
 import { getVendor, documentFileUrl } from "@/lib/api";
 import { useTenant } from "@/context/TenantContext";
 import type { QueryAnswer, TrustDocument, Vendor } from "@/lib/types";
@@ -80,14 +81,27 @@ function AssessPage() {
     });
   }, [answers, domain, verdict, query]);
 
+  const [activeEvidenceIdx, setActiveEvidenceIdx] = useState(0);
+
   const activeAnswer = useMemo(
     () => answers?.find((a) => a.question_id === activeAnswerId) ?? null,
     [answers, activeAnswerId],
   );
+  useEffect(() => {
+    setActiveEvidenceIdx(0);
+  }, [activeAnswerId]);
+
+  const docById = useMemo(() => {
+    const m = new Map<string, TrustDocument>();
+    docs.forEach((d) => m.set(d.id, d));
+    return m;
+  }, [docs]);
+
+  const activeEvidence = activeAnswer?.evidence[activeEvidenceIdx] ?? activeAnswer?.evidence[0];
   const activeDoc = useMemo(() => {
-    if (!activeAnswer || !activeAnswer.evidence[0]) return null;
-    return docs.find((d) => d.id === activeAnswer.evidence[0].document_id) ?? docs[0] ?? null;
-  }, [activeAnswer, docs]);
+    if (!activeEvidence) return null;
+    return docById.get(activeEvidence.document_id) ?? docs[0] ?? null;
+  }, [activeEvidence, docById, docs]);
 
   return (
     <BuyerShell>
@@ -265,15 +279,23 @@ function AssessPage() {
                   <X className="h-4 w-4" />
                 </button>
               </div>
+              {activeAnswer.source !== "web" && activeAnswer.evidence.length > 1 && (
+                <EvidenceSwitcher
+                  evidence={activeAnswer.evidence}
+                  docById={docById}
+                  activeIdx={activeEvidenceIdx}
+                  onSelect={setActiveEvidenceIdx}
+                />
+              )}
               <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
                 {activeAnswer.source === "web" && activeAnswer.citations.length > 0 ? (
                   <CitationsPanel
                     answer={activeAnswer.answer}
                     citations={activeAnswer.citations}
                   />
-                ) : activeAnswer.evidence[0] ? (
+                ) : activeEvidence ? (
                   <PDFPreview
-                    evidence={activeAnswer.evidence[0]}
+                    evidence={activeEvidence}
                     filename={activeDoc?.filename}
                     pdfUrl={activeDoc ? documentFileUrl(activeDoc.id) : undefined}
                   />

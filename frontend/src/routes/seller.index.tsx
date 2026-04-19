@@ -1,4 +1,4 @@
-﻿import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { FileText, Building2, ListChecks, GitBranch, ArrowRight, Loader2 } from "lucide-react";
@@ -11,7 +11,7 @@ import type { TrustDocument } from "@/lib/types";
 export const Route = createFileRoute("/seller/")({
   head: () => ({
     meta: [
-      { title: "Seller Dashboard ΓÇö Verifai" },
+      { title: "Seller Dashboard — Verifai" },
       {
         name: "description",
         content:
@@ -39,7 +39,7 @@ function Header({ tenantName }: { tenantName?: string }) {
   return (
     <div className="mb-7">
       <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-        {tenantName ?? "ΓÇö"}
+        {tenantName ?? "—"}
       </div>
       <h1 className="mt-1 text-2xl font-semibold tracking-tight">Welcome back</h1>
       <p className="mt-1 text-sm text-muted-foreground">
@@ -116,14 +116,14 @@ function RecentDocuments({ tenantId }: { tenantId?: string }) {
       <div className="mb-4 flex items-baseline justify-between">
         <h2 className="text-base font-semibold">Recent Documents</h2>
         <Link to="/seller/upload" className="text-xs font-medium text-signature hover:underline">
-          Upload new ΓåÆ
+          Upload new →
         </Link>
       </div>
 
       {!docs ? (
         <div className="flex items-center gap-2 rounded-xl border border-border bg-surface/40 px-5 py-8 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Loading documentsΓÇª
+          Loading documents…
         </div>
       ) : (
         <ul className="space-y-2">

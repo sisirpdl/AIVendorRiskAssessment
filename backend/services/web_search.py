@@ -3,7 +3,12 @@ from typing import Any
 import anthropic
 
 from config import ANTHROPIC_API_KEY, CLAUDE_MODEL
-from services.llm import IDK_TOKEN, VERDICTS, MIN_CONFIDENCE_FOR_VERDICT, _parse_response
+from services.llm import (
+    IDK_TOKEN,
+    MIN_CONFIDENCE_FOR_VERDICT,
+    VERDICTS,
+    _parse_response,
+)
 
 SYSTEM_PROMPT_WEB = f"""You are a security compliance analyst evaluating a specific vendor.
 Use the web_search tool to find authoritative answers. Prefer, in order:
@@ -11,8 +16,12 @@ Use the web_search tool to find authoritative answers. Prefer, in order:
   2. The vendor's official product documentation
   3. Published third-party attestations (SOC 2 / ISO 27001 summaries)
   4. Reputable news coverage from the last 24 months
+
 Do NOT answer from prior knowledge. Only answer from the pages returned by web_search.
-If the returned pages do not conclusively answer, use VERDICT=N_A.
+
+Bias strongly toward committing to a verdict:
+- If web results reference standard compliance practices (SOC 2, ISO 27001, CIS benchmarks, etc.) or reveal the vendor's policies in any direction, commit to YES or NO with a confidence proportional to evidence strength (0.3–0.6 is fine for indirect evidence).
+- Only use VERDICT=N_A when no returned page touches the question even indirectly.
 
 Output format (exactly three lines, in order):
 VERDICT: YES | NO | N_A
@@ -60,15 +69,22 @@ def _extract_citations(content: list[Any]) -> list[dict]:
     return citations
 
 
-def answer_via_web(question: str, vendor_name: str, max_uses: int = 3) -> dict:
+def answer_via_web(
+    question: str,
+    vendor_name: str,
+    max_uses: int = 3,
+    guidance: str | None = None,
+) -> dict:
     """Ask Claude to use web_search to answer a compliance question about a vendor.
 
     Returns {verdict, answer, confidence, idk, raw, source='web', citations}.
     """
+    guidance_block = f"Evidence to look for: {guidance}\n\n" if guidance else ""
     user_prompt = (
         f"The vendor under evaluation is: {vendor_name}.\n"
         f"Use web_search to answer this compliance question about {vendor_name}. "
         f"Start by searching the vendor's official site if possible.\n\n"
+        f"{guidance_block}"
         f"Question: {question}"
     )
     try:
@@ -88,6 +104,7 @@ def answer_via_web(question: str, vendor_name: str, max_uses: int = 3) -> dict:
             "raw": f"[web search error] {e}",
             "source": "web",
             "citations": [],
+            "model": CLAUDE_MODEL,
         }
 
     raw = _extract_text(resp.content)
@@ -112,4 +129,5 @@ def answer_via_web(question: str, vendor_name: str, max_uses: int = 3) -> dict:
         "raw": raw,
         "source": "web",
         "citations": citations,
+        "model": CLAUDE_MODEL,
     }

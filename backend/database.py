@@ -85,15 +85,45 @@ class Conflict(Base):
     new_document_id: Mapped[str] = mapped_column(String, ForeignKey("documents.id"))
     old_answer: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     new_answer: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    old_verdict: Mapped[str] = mapped_column(String, default="N_A")
+    new_verdict: Mapped[str] = mapped_column(String, default="N_A")
     old_confidence: Mapped[float] = mapped_column(Float, default=0.0)
     new_confidence: Mapped[float] = mapped_column(Float, default=0.0)
     conflict_type: Mapped[str] = mapped_column(String)  # idk_flip / keyword_flip / confidence_drop / semantic
+    severity: Mapped[str] = mapped_column(String, default="medium")  # high / medium / low
     status: Mapped[str] = mapped_column(String, default="unresolved")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
+def _ensure_columns() -> None:
+    """Add columns that were introduced after a db was first created.
+
+    Why: Base.metadata.create_all is idempotent for *tables* but silently skips
+    pre-existing tables, so new columns never land without a wipe. For demos we
+    want the app to keep starting on an old verifai.db."""
+    from sqlalchemy import text
+
+    additions = {
+        "conflicts": [
+            ("old_verdict", "VARCHAR DEFAULT 'N_A'"),
+            ("new_verdict", "VARCHAR DEFAULT 'N_A'"),
+            ("severity", "VARCHAR DEFAULT 'medium'"),
+        ],
+    }
+    with ENGINE.begin() as conn:
+        for table, cols in additions.items():
+            existing = {
+                row[1]
+                for row in conn.exec_driver_sql(f"PRAGMA table_info({table})").fetchall()
+            }
+            for name, spec in cols:
+                if name not in existing:
+                    conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {name} {spec}")
+
+
 def init_db() -> None:
     Base.metadata.create_all(bind=ENGINE)
+    _ensure_columns()
 
 
 def get_session() -> Session:

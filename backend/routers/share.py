@@ -1,7 +1,12 @@
+import io
 import json
+import re
 import secrets
+import zipfile
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy import select
 
@@ -9,6 +14,12 @@ from database import CachedAnswer, Document, SessionLocal, ShareLink
 from services.cached_answers import total_questions
 
 router = APIRouter()
+
+
+def _safe_filename(name: str) -> str:
+    """Strip path traversal and Windows-illegal chars for inclusion in a ZIP."""
+    base = Path(name).name or "document.pdf"
+    return re.sub(r'[<>:"/\\|?*\x00-\x1f]+', "_", base)
 
 
 class EditPatch(BaseModel):
@@ -97,6 +108,14 @@ def get_share(token: str) -> dict:
                     }
                 )
 
+        # Every document under this vendor (to resolve multi-doc evidence citations)
+        vendor_docs = session.execute(
+            select(Document).where(
+                Document.tenant_id == link.tenant_id,
+                Document.vendor_id == doc.vendor_id,
+            )
+        ).scalars().all()
+
         return {
             "token": token,
             "document": {
@@ -106,6 +125,64 @@ def get_share(token: str) -> dict:
                 "page_count": doc.page_count,
                 "created_at": doc.created_at.isoformat() if doc.created_at else None,
             },
+            "documents": [
+                {
+                    "id": d.id,
+                    "filename": d.filename,
+                    "page_count": d.page_count,
+                    "created_at": d.created_at.isoformat() if d.created_at else None,
+                }
+                for d in vendor_docs
+            ],
             "total": total_questions(),
             "answers": answers,
         }
+
+
+@router.get("/share/{token}/source.zip")
+def get_share_source_zip(token: str) -> Response:
+    """Bundle every source PDF attached to the vendor on this share into a ZIP.
+
+    Public endpoint (same auth model as /share/{token}): anyone with the token
+    can grab the underlying evidence. Vendor-scoped — not tenant-wide.
+    """
+    with SessionLocal() as session:
+        link = session.get(ShareLink, token)
+        if not link:
+            raise HTTPException(status_code=404, detail="Share link not found or expired")
+
+        primary = session.get(Document, link.document_id)
+        if not primary:
+            raise HTTPException(status_code=404, detail="Underlying document missing")
+
+        docs = session.execute(
+            select(Document).where(
+                Document.tenant_id == link.tenant_id,
+                Document.vendor_id == primary.vendor_id,
+            )
+        ).scalars().all()
+
+    buf = io.BytesIO()
+    seen: dict[str, int] = {}
+    with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for d in docs:
+            path = Path(d.filepath)
+            if not path.exists():
+                continue
+            name = _safe_filename(d.filename)
+            # De-dupe names inside the zip (two docs with same filename).
+            count = seen.get(name, 0)
+            if count:
+                stem = Path(name).stem
+                ext = Path(name).suffix
+                name = f"{stem} ({count}){ext}"
+            seen[Path(name).name] = count + 1
+            seen[name] = 1
+            zf.write(path, arcname=name)
+
+    archive_name = _safe_filename(f"{primary.vendor_id}-source-reports.zip")
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{archive_name}"'},
+    )

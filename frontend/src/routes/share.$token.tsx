@@ -1,12 +1,16 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Check, Download, FileText, FolderInput, Loader2, Printer, ShieldCheck } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Check, Download, FileText, FolderInput, Loader2, ShieldCheck, X } from "lucide-react";
 import { AnswerRow } from "@/components/trustlens/AnswerRow";
-import { getSharedReport, getTenants, type SharedReport } from "@/lib/api";
-import { answersToCsv, downloadCsv } from "@/lib/export";
-import { addImport } from "@/lib/imports";
+import { PDFPreview } from "@/components/trustlens/PDFPreview";
+import { CitationsPanel } from "@/components/trustlens/CitationsPanel";
+import { EvidenceSwitcher } from "@/components/trustlens/EvidenceSwitcher";
+import { documentFileUrl, getSharedReport, getTenants, shareSourceZipUrl, type SharedReport } from "@/lib/api";
+import { answersToCsv, downloadCsv, downloadReportPdf } from "@/lib/export";
+import { addImport, getImports, removeImport } from "@/lib/imports";
 import { useTenant } from "@/context/TenantContext";
-import type { Tenant } from "@/lib/types";
+import type { Tenant, TrustDocument } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/share/$token")({
@@ -29,6 +33,7 @@ function SharePage() {
   const [query, setQuery] = useState("");
   const [importState, setImportState] = useState<"idle" | "picking" | "done">("idle");
   const [tenants, setTenants] = useState<Tenant[] | null>(null);
+  const [activeAnswerId, setActiveAnswerId] = useState<string | null>(null);
 
   useEffect(() => {
     getTenants().then(setTenants).catch(() => setTenants([]));
@@ -41,6 +46,15 @@ function SharePage() {
       .then(setReport)
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }, [token]);
+
+  // If this token has already been imported into ANY tenant's vault, reflect that.
+  useEffect(() => {
+    if (!tenants) return;
+    const alreadyImported = tenants.some((t) =>
+      getImports(t.id).some((imp) => imp.token === token),
+    );
+    if (alreadyImported) setImportState("done");
+  }, [tenants, token]);
 
   const domains = useMemo(() => {
     if (!report) return [] as string[];
@@ -72,14 +86,65 @@ function SharePage() {
     return { answered, yes, no, unresolved, total: report.answers.length };
   }, [report]);
 
+  const activeAnswer = useMemo(
+    () => report?.answers.find((a) => a.question_id === activeAnswerId) ?? null,
+    [report, activeAnswerId],
+  );
+
+  const [activeEvidenceIdx, setActiveEvidenceIdx] = useState(0);
+  useEffect(() => {
+    setActiveEvidenceIdx(0);
+  }, [activeAnswerId]);
+
+  const docById = useMemo(() => {
+    const m = new Map<string, TrustDocument>();
+    if (!report) return m;
+    const build = (id: string, filename: string, page_count: number): TrustDocument => ({
+      id,
+      filename,
+      vendor_id: report.document.vendor_id,
+      vendor_name: report.document.vendor_id,
+      tenant_id: "",
+      uploaded_at: new Date().toISOString(),
+      status: "ready",
+      pages: page_count,
+    });
+    for (const d of report.documents) m.set(d.id, build(d.id, d.filename, d.page_count));
+    // Ensure the primary doc is also present.
+    m.set(
+      report.document.id,
+      build(report.document.id, report.document.filename, report.document.page_count),
+    );
+    return m;
+  }, [report]);
+
+  const activeEvidence = activeAnswer?.evidence[activeEvidenceIdx] ?? activeAnswer?.evidence[0];
+  const evidenceDoc = activeEvidence ? docById.get(activeEvidence.document_id) : undefined;
+  const evidencePdfUrl = evidenceDoc ? documentFileUrl(evidenceDoc.id) : undefined;
+  const primaryPdfUrl = report ? documentFileUrl(report.document.id) : undefined;
+  const pdfUrl = primaryPdfUrl;
+
   function onExportCsv() {
     if (!report) return;
     const base = report.document.filename.replace(/\.pdf$/i, "") || "trust-report";
     downloadCsv(`${base}.csv`, answersToCsv(report.answers));
   }
 
-  function onPrint() {
-    window.print();
+  async function onExportPdf() {
+    if (!report || !stats) return;
+    const base = report.document.filename.replace(/\.pdf$/i, "") || "trust-report";
+    await downloadReportPdf(
+      `${base}-report.pdf`,
+      {
+        vendorName: report.document.vendor_id,
+        filename: report.document.filename,
+        total: stats.total,
+        yes: stats.yes,
+        no: stats.no,
+        unresolved: stats.unresolved,
+      },
+      report.answers,
+    );
   }
 
   function onImportClick() {
@@ -100,16 +165,36 @@ function SharePage() {
       answers: report.answers,
     });
     setImportState("done");
-    setTimeout(() => {
-      router.navigate({ to: "/buyer" });
-    }, 900);
+    router.navigate({ to: "/buyer" });
   }
 
   if (error) {
+    const isMissing = /404|not found|expired/i.test(error);
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
-        <div className="max-w-md rounded-xl border border-danger/30 bg-danger/5 px-5 py-6 text-center text-sm text-danger">
-          {error}
+        <div className="max-w-md rounded-xl border border-danger/30 bg-danger/5 px-5 py-6 text-center text-sm">
+          <div className="font-medium text-danger">
+            {isMissing ? "This shared report is no longer available." : error}
+          </div>
+          {isMissing && (
+            <div className="mt-2 text-xs text-muted-foreground">
+              The underlying document was removed or the backend data was reset.
+            </div>
+          )}
+          {isMissing && (
+            <button
+              type="button"
+              onClick={() => {
+                if (tenants) {
+                  for (const t of tenants) removeImport(t.id, token);
+                }
+                router.navigate({ to: "/buyer" });
+              }}
+              className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-signature px-3 py-1.5 text-xs font-semibold text-signature-foreground hover:bg-signature/90"
+            >
+              Remove from dashboard
+            </button>
+          )}
         </div>
       </div>
     );
@@ -144,6 +229,23 @@ function SharePage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {report && report.documents.length > 0 && (
+              <a
+                href={shareSourceZipUrl(report.token)}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-medium text-foreground hover:border-signature/40 hover:text-signature"
+                title={
+                  report.documents.length > 1
+                    ? `Download all ${report.documents.length} source PDFs as a ZIP`
+                    : "Download the source PDF"
+                }
+              >
+                <FileText className="h-3.5 w-3.5" />
+                {report.documents.length > 1
+                  ? `Source Reports (${report.documents.length})`
+                  : "Source Report"}
+                <Download className="h-3 w-3 opacity-60" />
+              </a>
+            )}
             <button
               type="button"
               onClick={onExportCsv}
@@ -154,10 +256,11 @@ function SharePage() {
             </button>
             <button
               type="button"
-              onClick={onPrint}
+              onClick={onExportPdf}
               className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+              title="Download this report as a PDF"
             >
-              <Printer className="h-3.5 w-3.5" />
+              <Download className="h-3.5 w-3.5" />
               PDF
             </button>
             <button
@@ -254,7 +357,17 @@ function SharePage() {
               No answers match.
             </div>
           ) : (
-            filtered.map((a) => <AnswerRow key={a.question_id} answer={a} />)
+            filtered.map((a) => (
+              <AnswerRow
+                key={a.question_id}
+                answer={a}
+                isActive={a.question_id === activeAnswerId}
+                onClick={() => {
+                  if (a.idk) return;
+                  setActiveAnswerId(a.question_id === activeAnswerId ? null : a.question_id);
+                }}
+              />
+            ))
           )}
         </section>
 
@@ -262,6 +375,65 @@ function SharePage() {
           Generated by Verifai · Evidence-backed vendor security answers.
         </footer>
       </main>
+
+      <AnimatePresence>
+        {activeAnswer && !activeAnswer.idk && (activeAnswer.evidence[0] || activeAnswer.citations.length > 0) && (
+          <motion.div
+            key="overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm print:hidden"
+            onClick={() => setActiveAnswerId(null)}
+          >
+            <motion.aside
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", stiffness: 240, damping: 28 }}
+              onClick={(e) => e.stopPropagation()}
+              className="absolute right-0 top-0 flex h-full w-full max-w-2xl flex-col border-l border-border bg-background shadow-card"
+            >
+              <div className="flex items-center justify-between border-b border-border px-6 py-4">
+                <div>
+                  <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-signature">
+                    {activeAnswer.source === "web" ? "Web Sources" : "Evidence"}
+                  </div>
+                  <div className="mt-0.5 line-clamp-1 text-sm font-medium">
+                    {activeAnswer.question}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveAnswerId(null)}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface text-muted-foreground hover:border-border/80 hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              {activeAnswer.source !== "web" && activeAnswer.evidence.length > 1 && (
+                <EvidenceSwitcher
+                  evidence={activeAnswer.evidence}
+                  docById={docById}
+                  activeIdx={activeEvidenceIdx}
+                  onSelect={setActiveEvidenceIdx}
+                />
+              )}
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+                {activeAnswer.source === "web" && activeAnswer.citations.length > 0 ? (
+                  <CitationsPanel answer={activeAnswer.answer} citations={activeAnswer.citations} />
+                ) : activeEvidence ? (
+                  <PDFPreview
+                    evidence={activeEvidence}
+                    filename={evidenceDoc?.filename ?? report.document.filename}
+                    pdfUrl={evidencePdfUrl ?? pdfUrl}
+                  />
+                ) : null}
+              </div>
+            </motion.aside>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {importState === "picking" && (
         <div

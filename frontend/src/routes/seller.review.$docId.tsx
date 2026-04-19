@@ -6,6 +6,7 @@ import { SellerShell } from "@/components/trustlens/SellerShell";
 import { AnswerRow, type AnswerEditPatch } from "@/components/trustlens/AnswerRow";
 import { PDFPreview } from "@/components/trustlens/PDFPreview";
 import { CitationsPanel } from "@/components/trustlens/CitationsPanel";
+import { EvidenceSwitcher } from "@/components/trustlens/EvidenceSwitcher";
 import {
   ReviewFilters,
   DEFAULT_REVIEW_FILTERS,
@@ -14,7 +15,7 @@ import {
 } from "@/components/trustlens/ReviewFilters";
 import { ReviewGenerateLinkDialog } from "@/components/trustlens/ReviewGenerateLinkDialog";
 import { useTenant } from "@/context/TenantContext";
-import { getDocument, getCachedAnswers, documentFileUrl } from "@/lib/api";
+import { getDocument, getCachedAnswers, getVendor, documentFileUrl, updateAnswer } from "@/lib/api";
 import type { QueryAnswer, TrustDocument } from "@/lib/types";
 
 export const Route = createFileRoute("/seller/review/$docId")({
@@ -39,12 +40,14 @@ function ReviewPage() {
   const { activeTenant } = useTenant();
 
   const [doc, setDoc] = useState<TrustDocument | null>(null);
+  const [vendorDocs, setVendorDocs] = useState<TrustDocument[]>([]);
   const [answers, setAnswers] = useState<QueryAnswer[] | null>(null);
   const [totalExpected, setTotalExpected] = useState<number | null>(null);
   const [precomputeStatus, setPrecomputeStatus] = useState<
     "processing" | "answering" | "web_searching" | "ready" | "failed" | null
   >(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeEvidenceIdx, setActiveEvidenceIdx] = useState(0);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [filters, setFilters] = useState<ReviewFilterState>(DEFAULT_REVIEW_FILTERS);
   const [edits, setEdits] = useState<Record<string, AnswerEditPatch>>({});
@@ -52,6 +55,7 @@ function ReviewPage() {
 
   useEffect(() => {
     setDoc(null);
+    setVendorDocs([]);
     setAnswers(null);
     setTotalExpected(null);
     setPrecomputeStatus(null);
@@ -61,8 +65,14 @@ function ReviewPage() {
 
     if (!activeTenant) return;
 
+    // Fetch the main doc, then pull the full vendor so we can resolve evidence
+    // back to its originating document (may be different from `docId`).
     getDocument(docId, activeTenant.id)
-      .then((document) => setDoc(document))
+      .then((document) => {
+        setDoc(document);
+        return getVendor(document.vendor_id, activeTenant.id);
+      })
+      .then((vendor) => setVendorDocs(vendor.documents))
       .catch((e) => setLoadError(e instanceof Error ? e.message : String(e)));
 
     let cancelled = false;
@@ -115,12 +125,26 @@ function ReviewPage() {
     [mergedAnswers, activeId],
   );
   const hasPdfEvidence =
-    !!activeAnswer && !activeAnswer.idk && activeAnswer.source === "pdf" && activeAnswer.evidence[0];
+    !!activeAnswer && !activeAnswer.idk && activeAnswer.source === "pdf" && activeAnswer.evidence.length > 0;
   const hasWebEvidence =
     !!activeAnswer && !activeAnswer.idk && activeAnswer.source === "web" && activeAnswer.citations.length > 0;
   const splitOpen = hasPdfEvidence || hasWebEvidence;
 
-  const pdfUrl = doc ? documentFileUrl(doc.id) : undefined;
+  const docById = useMemo(() => {
+    const m = new Map<string, TrustDocument>();
+    vendorDocs.forEach((d) => m.set(d.id, d));
+    if (doc) m.set(doc.id, doc);
+    return m;
+  }, [vendorDocs, doc]);
+
+  // Reset evidence index when the user selects a different answer.
+  useEffect(() => {
+    setActiveEvidenceIdx(0);
+  }, [activeId]);
+
+  const activeEvidence = activeAnswer?.evidence[activeEvidenceIdx] ?? activeAnswer?.evidence[0];
+  const evidenceDoc = activeEvidence ? docById.get(activeEvidence.document_id) ?? doc : doc;
+  const pdfUrl = evidenceDoc ? documentFileUrl(evidenceDoc.id) : undefined;
 
   return (
     <SellerShell>
@@ -241,9 +265,27 @@ function ReviewPage() {
                           answer={a}
                           isActive={a.question_id === activeId}
                           editable
-                          onEditSave={(patch) =>
-                            setEdits((prev) => ({ ...prev, [a.question_id]: patch }))
-                          }
+                          onEditSave={async (patch) => {
+                            // Optimistic overlay for instant feedback.
+                            setEdits((prev) => ({ ...prev, [a.question_id]: patch }));
+                            if (!activeTenant) return;
+                            try {
+                              await updateAnswer(docId, a.question_id, activeTenant.id, patch);
+                              // Refetch so the persisted backend row replaces the overlay.
+                              const fresh = await getCachedAnswers(docId, activeTenant.id);
+                              setAnswers(fresh.answers);
+                              setEdits((prev) => {
+                                const next = { ...prev };
+                                delete next[a.question_id];
+                                return next;
+                              });
+                            } catch (e) {
+                              console.error("updateAnswer failed", e);
+                              alert(
+                                `Failed to save: ${e instanceof Error ? e.message : String(e)}`,
+                              );
+                            }
+                          }}
                           onClick={() => {
                             if (a.idk || a.source === "manual") return;
                             setActiveId(a.question_id === activeId ? null : a.question_id);
@@ -290,11 +332,19 @@ function ReviewPage() {
                       <X className="h-4 w-4" />
                     </button>
                   </div>
+                  {hasPdfEvidence && activeAnswer.evidence.length > 1 && (
+                    <EvidenceSwitcher
+                      evidence={activeAnswer.evidence}
+                      docById={docById}
+                      activeIdx={activeEvidenceIdx}
+                      onSelect={setActiveEvidenceIdx}
+                    />
+                  )}
                   <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-                    {hasPdfEvidence ? (
+                    {hasPdfEvidence && activeEvidence ? (
                       <PDFPreview
-                        evidence={activeAnswer.evidence[0]}
-                        filename={doc?.filename}
+                        evidence={activeEvidence}
+                        filename={evidenceDoc?.filename}
                         pdfUrl={pdfUrl}
                       />
                     ) : hasWebEvidence ? (

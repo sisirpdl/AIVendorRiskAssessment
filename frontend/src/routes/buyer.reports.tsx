@@ -1,4 +1,4 @@
-﻿import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { FileSearch, Download, Loader2, ArrowRight, Building2, FileText } from "lucide-react";
@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/buyer/reports")({
   head: () => ({
     meta: [
-      { title: "Reports ΓÇö Verifai Trust Vault" },
+      { title: "Reports — Verifai Trust Vault" },
       {
         name: "description",
         content:
@@ -76,7 +76,7 @@ function ReportsPage() {
   }, [services]);
 
   const onExport = () => {
-    // Simulated export ΓÇö produce a quick summary blob
+    // Simulated export — produce a quick summary blob
     const blob = new Blob(
       [
         JSON.stringify(
@@ -150,7 +150,7 @@ function ReportsPage() {
         {!services ? (
           <div className="flex items-center gap-2 rounded-xl border border-border bg-surface/40 px-5 py-10 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Generating reportsΓÇª
+            Generating reports…
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

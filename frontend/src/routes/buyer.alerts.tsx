@@ -1,4 +1,4 @@
-﻿import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { AlertTriangle, GitBranch, Clock, Loader2, ArrowRight, ShieldAlert } from "lucide-react";
@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/buyer/alerts")({
   head: () => ({
     meta: [
-      { title: "Alerts ΓÇö Verifai Trust Vault" },
+      { title: "Alerts — Verifai Trust Vault" },
       {
         name: "description",
         content:
@@ -72,7 +72,7 @@ function AlertsPage() {
         {!alerts ? (
           <div className="flex items-center gap-2 rounded-xl border border-border bg-surface/40 px-5 py-10 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading alertsΓÇª
+            Loading alerts…
           </div>
         ) : alerts.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border bg-surface/40 px-5 py-12 text-center text-sm text-muted-foreground">
