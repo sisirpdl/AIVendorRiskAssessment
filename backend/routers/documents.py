@@ -4,12 +4,13 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 
 from config import PDF_DIR
 from database import Document, SessionLocal
+from services.cached_answers import run_precompute
 from services.chunker import chunk_spans
 from services.embedder import embed_texts
 from services.pdf_extractor import extract_spans, page_count
@@ -25,6 +26,7 @@ def _slugify(name: str) -> str:
 
 @router.post("/upload")
 def upload(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     tenant_id: str = Query(...),
     vendor_id: Optional[str] = Query(None),
@@ -76,8 +78,11 @@ def upload(
         with SessionLocal() as session:
             doc_row = session.get(Document, document_id)
             doc_row.page_count = pages
-            doc_row.status = "ready"
+            doc_row.status = "answering"
             session.commit()
+
+        # Kick off CAIQ-50 pre-compute in the background so the client can start polling.
+        background_tasks.add_task(run_precompute, document_id, tenant_id)
 
         return {
             "document_id": document_id,
@@ -87,7 +92,7 @@ def upload(
             "doc_version": doc_version,
             "page_count": pages,
             "chunk_count": len(chunks),
-            "status": "ready",
+            "status": "answering",
         }
     except Exception as e:
         with SessionLocal() as session:
@@ -96,6 +101,24 @@ def upload(
                 doc_row.status = "failed"
                 session.commit()
         raise HTTPException(status_code=500, detail=f"Processing failed: {e}")
+
+
+@router.get("/{document_id}")
+def get_document(document_id: str):
+    with SessionLocal() as session:
+        doc = session.get(Document, document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return {
+        "document_id": doc.id,
+        "tenant_id": doc.tenant_id,
+        "vendor_id": doc.vendor_id,
+        "filename": doc.filename,
+        "doc_version": doc.doc_version,
+        "page_count": doc.page_count,
+        "status": doc.status,
+        "created_at": doc.created_at.isoformat() if doc.created_at else None,
+    }
 
 
 @router.get("/{document_id}/file")

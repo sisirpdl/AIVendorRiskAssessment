@@ -14,7 +14,7 @@ import {
 import { BuyerShell } from "@/components/trustlens/BuyerShell";
 import { ConfidenceRing } from "@/components/trustlens/ConfidenceRing";
 import { useTenant } from "@/context/TenantContext";
-import { getVendors } from "@/lib/mockApi";
+import { getVendors } from "@/lib/api";
 import { DOMAINS } from "@/lib/types";
 import type { Vendor } from "@/lib/types";
 import { cn } from "@/lib/utils";

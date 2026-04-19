@@ -17,7 +17,8 @@ import { ConfidenceRing } from "@/components/trustlens/ConfidenceRing";
 import { ConfidenceBar } from "@/components/trustlens/ConfidenceBar";
 import { IDKBadge } from "@/components/trustlens/IDKBadge";
 import { PDFPreview } from "@/components/trustlens/PDFPreview";
-import { getVendor, getAnswers, getDocuments } from "@/lib/mockApi";
+import { getVendor, documentFileUrl } from "@/lib/api";
+import { useTenant } from "@/context/TenantContext";
 import type { Vendor, QueryAnswer, TrustDocument } from "@/lib/types";
 import { DOMAINS } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -55,6 +56,7 @@ function scoreTone(v: number) {
 
 function AssessPage() {
   const { vendorId } = Route.useParams();
+  const { activeTenant } = useTenant();
   const [service, setService] = useState<Vendor | null>(null);
   const [answers, setAnswers] = useState<QueryAnswer[] | null>(null);
   const [docs, setDocs] = useState<TrustDocument[]>([]);
@@ -62,15 +64,15 @@ function AssessPage() {
   const [activeAnswerId, setActiveAnswerId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!activeTenant) return;
     setService(null);
     setAnswers(null);
-    getVendor(vendorId).then(async (v) => {
+    getVendor(vendorId, activeTenant.id).then((v) => {
       setService(v);
-      const [a, d] = await Promise.all([getAnswers(v.id), getDocuments(v.tenant_id)]);
-      setAnswers(a);
-      setDocs(d.filter((x) => x.vendor_id === v.id));
+      setAnswers(v.answers);
+      setDocs(v.documents);
     });
-  }, [vendorId]);
+  }, [vendorId, activeTenant]);
 
   const grouped = useMemo(() => {
     const out: Record<string, QueryAnswer[]> = {};
@@ -336,6 +338,7 @@ function AssessPage() {
                 <PDFPreview
                   evidence={activeAnswer.evidence[0]}
                   filename={activeDoc?.filename}
+                  pdfUrl={activeDoc ? documentFileUrl(activeDoc.id) : undefined}
                 />
               </div>
             </motion.aside>

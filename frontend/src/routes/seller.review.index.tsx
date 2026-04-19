@@ -6,7 +6,7 @@ import { SellerShell } from "@/components/trustlens/SellerShell";
 import { ConfidenceBar } from "@/components/trustlens/ConfidenceBar";
 import { IDKBadge } from "@/components/trustlens/IDKBadge";
 import { useTenant } from "@/context/TenantContext";
-import { getDocuments, getAnswers } from "@/lib/mockApi";
+import { getVendors, getVendor } from "@/lib/api";
 import type { QueryAnswer, TrustDocument } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -41,23 +41,18 @@ function ReviewQueuePage() {
     let cancelled = false;
     setRows(null);
     (async () => {
-      const docs = await getDocuments(activeTenant.id);
-      const lists = await Promise.all(
-        docs.map(async (d) => {
-          const ans = await getAnswers(d.vendor_id);
-          return ans.map((a) => ({ answer: a, doc: d }));
-        }),
+      const vendors = await getVendors(activeTenant.id);
+      const details = await Promise.all(
+        vendors.map((v) => getVendor(v.id, activeTenant.id)),
       );
       if (cancelled) return;
-      // Dedupe — answers are vendor-scoped, so picking first doc per vendor is enough
-      const seen = new Set<string>();
       const merged: QueueRow[] = [];
-      lists.flat().forEach((r) => {
-        const key = `${r.doc.vendor_id}-${r.answer.question_id}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          merged.push(r);
-        }
+      details.forEach((vd) => {
+        const docById = new Map(vd.documents.map((d) => [d.id, d]));
+        vd.answers.forEach((a) => {
+          const doc = docById.get(a.document_id) ?? vd.documents[0];
+          if (doc) merged.push({ answer: a, doc });
+        });
       });
       setRows(merged);
     })();

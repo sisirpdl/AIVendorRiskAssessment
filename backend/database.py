@@ -53,6 +53,7 @@ class CachedAnswer(Base):
     tenant_id: Mapped[str] = mapped_column(String, index=True)
     question_id: Mapped[str] = mapped_column(String, index=True)
     question_text: Mapped[str] = mapped_column(Text)
+    domain: Mapped[str] = mapped_column(String, default="")
     answer: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     confidence: Mapped[float] = mapped_column(Float, default=0.0)
     idk: Mapped[bool] = mapped_column(Integer, default=0)  # 0/1 in SQLite

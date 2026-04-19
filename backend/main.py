@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config import ANTHROPIC_API_KEY, CHROMA_DIR, DEMO_TENANTS, PDF_DIR, SQLITE_PATH
 from database import init_db
-from routers import documents, query
+from routers import answers, conflicts, documents, query, stats, vendors
 
 
 @asynccontextmanager
@@ -43,3 +43,7 @@ def tenants() -> dict:
 
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
 app.include_router(query.router, prefix="/api", tags=["query"])
+app.include_router(answers.router, prefix="/api", tags=["answers"])
+app.include_router(vendors.router, prefix="/api/vendors", tags=["vendors"])
+app.include_router(stats.router, prefix="/api", tags=["stats"])
+app.include_router(conflicts.router, prefix="/api/conflicts", tags=["conflicts"])

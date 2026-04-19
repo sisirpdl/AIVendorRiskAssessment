@@ -5,7 +5,8 @@ import { ArrowLeft, Loader2, X, CheckCircle2 } from "lucide-react";
 import { SellerShell } from "@/components/trustlens/SellerShell";
 import { AnswerCard } from "@/components/trustlens/AnswerCard";
 import { PDFPreview } from "@/components/trustlens/PDFPreview";
-import { getAnswersByDocument } from "@/lib/mockApi";
+import { useTenant } from "@/context/TenantContext";
+import { getDocument, getCachedAnswers, documentFileUrl } from "@/lib/api";
 import type { QueryAnswer, TrustDocument } from "@/lib/types";
 
 export const Route = createFileRoute("/seller/review/$docId")({
@@ -22,23 +23,61 @@ export const Route = createFileRoute("/seller/review/$docId")({
   component: ReviewPage,
 });
 
+const POLL_INTERVAL_MS = 2000;
+
 function ReviewPage() {
   const { docId } = Route.useParams();
   const router = useRouter();
+  const { activeTenant } = useTenant();
 
   const [doc, setDoc] = useState<TrustDocument | null>(null);
   const [answers, setAnswers] = useState<QueryAnswer[] | null>(null);
+  const [totalExpected, setTotalExpected] = useState<number | null>(null);
+  const [precomputeStatus, setPrecomputeStatus] = useState<
+    "processing" | "answering" | "ready" | "failed" | null
+  >(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     setDoc(null);
     setAnswers(null);
+    setTotalExpected(null);
+    setPrecomputeStatus(null);
     setActiveId(null);
-    getAnswersByDocument(docId).then(({ document, answers }) => {
-      setDoc(document);
-      setAnswers(answers);
-    });
-  }, [docId]);
+    setLoadError(null);
+
+    if (!activeTenant) return;
+
+    getDocument(docId, activeTenant.id)
+      .then((document) => setDoc(document))
+      .catch((e) => setLoadError(e instanceof Error ? e.message : String(e)));
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const poll = () => {
+      getCachedAnswers(docId, activeTenant.id)
+        .then((res) => {
+          if (cancelled) return;
+          setAnswers(res.answers);
+          setTotalExpected(res.total);
+          setPrecomputeStatus(res.status);
+          const done = res.status === "ready" && res.answers.length >= res.total;
+          if (!done) timer = setTimeout(poll, POLL_INTERVAL_MS);
+        })
+        .catch((e) => {
+          if (cancelled) return;
+          setLoadError(e instanceof Error ? e.message : String(e));
+        });
+    };
+    poll();
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [docId, activeTenant]);
 
   const activeAnswer = useMemo(
     () => answers?.find((a) => a.question_id === activeId) ?? null,
@@ -47,10 +86,11 @@ function ReviewPage() {
   const hasEvidence = !!activeAnswer && !activeAnswer.idk && activeAnswer.evidence[0];
   const splitOpen = !!hasEvidence;
 
+  const pdfUrl = doc ? documentFileUrl(doc.id) : undefined;
+
   return (
     <SellerShell>
       <div className="flex h-[calc(100vh-3.5rem)] flex-col">
-        {/* Document header */}
         <div className="flex items-center justify-between border-b border-border bg-background/60 px-8 py-4 backdrop-blur-xl">
           <div className="flex items-center gap-3">
             <button
@@ -65,13 +105,21 @@ function ReviewPage() {
                 Review Queue
               </div>
               <div className="text-sm font-medium">
-                {doc?.filename ?? "Loading document…"}
+                {doc?.filename ?? (loadError ? "Failed to load" : "Loading document…")}
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            {answers && (
+            {answers && precomputeStatus === "answering" && totalExpected ? (
+              <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin text-signature" />
+                <span className="font-mono-num text-foreground">
+                  {answers.length}/{totalExpected}
+                </span>{" "}
+                grounding against PDF
+              </span>
+            ) : answers ? (
               <span className="text-xs text-muted-foreground">
                 <span className="font-mono-num text-foreground">
                   {answers.filter((a) => !a.idk).length}
@@ -82,7 +130,7 @@ function ReviewPage() {
                 </span>{" "}
                 unanswered
               </span>
-            )}
+            ) : null}
             <button
               type="button"
               className="inline-flex items-center gap-2 rounded-lg bg-signature px-4 py-2 text-sm font-medium text-signature-foreground shadow-[0_0_24px_rgba(250,204,21,0.35)] transition-transform hover:-translate-y-0.5"
@@ -93,18 +141,33 @@ function ReviewPage() {
           </div>
         </div>
 
-        {/* Split body */}
         <div className="flex min-h-0 flex-1">
-          {/* Left: list */}
           <motion.div
             animate={{ width: splitOpen ? "50%" : "100%" }}
             transition={{ type: "spring", stiffness: 200, damping: 25 }}
             className="min-w-0 overflow-y-auto px-8 py-6"
           >
-            {!answers ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Generating answers…
+            {loadError ? (
+              <div className="rounded-xl border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger">
+                {loadError}
+              </div>
+            ) : !answers || (answers.length === 0 && precomputeStatus !== "ready") ? (
+              <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface/50 px-5 py-6 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-signature" />
+                  {totalExpected
+                    ? `Grounding ${totalExpected} questions against your PDF…`
+                    : "Preparing RAG pipeline…"}
+                </div>
+                {totalExpected ? (
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-elevated">
+                    <motion.div
+                      className="h-full rounded-full bg-signature"
+                      animate={{ width: `${((answers?.length ?? 0) / totalExpected) * 100}%` }}
+                      transition={{ duration: 0.4 }}
+                    />
+                  </div>
+                ) : null}
               </div>
             ) : (
               <ul className="space-y-3 pb-12">
@@ -120,9 +183,7 @@ function ReviewPage() {
                       isActive={a.question_id === activeId}
                       onClick={() => {
                         if (a.idk) return;
-                        setActiveId(
-                          a.question_id === activeId ? null : a.question_id,
-                        );
+                        setActiveId(a.question_id === activeId ? null : a.question_id);
                       }}
                     />
                   </motion.li>
@@ -136,7 +197,6 @@ function ReviewPage() {
             )}
           </motion.div>
 
-          {/* Right: evidence panel */}
           <AnimatePresence>
             {splitOpen && activeAnswer && hasEvidence && (
               <motion.aside
@@ -169,6 +229,7 @@ function ReviewPage() {
                     <PDFPreview
                       evidence={activeAnswer.evidence[0]}
                       filename={doc?.filename}
+                      pdfUrl={pdfUrl}
                     />
                   </div>
                 </div>

@@ -5,7 +5,7 @@ import { FileSearch, Download, Loader2, ArrowRight, Building2, FileText } from "
 import { BuyerShell } from "@/components/trustlens/BuyerShell";
 import { ConfidenceRing } from "@/components/trustlens/ConfidenceRing";
 import { useTenant } from "@/context/TenantContext";
-import { getVendors, getDashboardStats } from "@/lib/mockApi";
+import { getVendors, getDashboardStats } from "@/lib/api";
 import type { Vendor } from "@/lib/types";
 import { DOMAINS } from "@/lib/types";
 import { cn } from "@/lib/utils";

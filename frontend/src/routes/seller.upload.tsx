@@ -11,10 +11,11 @@ import {
   Brain,
   ShieldCheck,
   X,
+  AlertTriangle,
 } from "lucide-react";
 import { SellerShell } from "@/components/trustlens/SellerShell";
 import { useTenant } from "@/context/TenantContext";
-import { getDocuments } from "@/lib/mockApi";
+import { getDocuments, uploadDocument } from "@/lib/api";
 import type { TrustDocument } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -32,13 +33,13 @@ export const Route = createFileRoute("/seller/upload")({
   component: UploadPage,
 });
 
-type Stage = "idle" | "uploading" | "parsing" | "embedding" | "answering" | "done";
+type Stage = "idle" | "uploading" | "parsing" | "embedding" | "answering" | "done" | "failed";
 
 const PIPELINE: { id: Stage; label: string; icon: typeof FileText; hint: string }[] = [
   { id: "uploading", label: "Uploading file", icon: UploadCloud, hint: "Streaming to secure storage" },
   { id: "parsing", label: "Parsing PDF", icon: ScanText, hint: "Extracting text and bounding boxes" },
-  { id: "embedding", label: "Embedding chunks", icon: Sparkles, hint: "Vectorizing 1,200+ semantic chunks" },
-  { id: "answering", label: "Generating answers", icon: Brain, hint: "Grounding answers with citations" },
+  { id: "embedding", label: "Embedding chunks", icon: Sparkles, hint: "Vectorizing semantic chunks" },
+  { id: "answering", label: "Grounding evidence", icon: Brain, hint: "Indexing citations for retrieval" },
 ];
 
 function UploadPage() {
@@ -51,40 +52,71 @@ function UploadPage() {
   const [progress, setProgress] = useState(0);
   const [recentDocs, setRecentDocs] = useState<TrustDocument[]>([]);
   const [targetDocId, setTargetDocId] = useState<string | null>(null);
+  const [uploadSummary, setUploadSummary] = useState<{ pages: number; chunks: number } | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const refreshRecent = useCallback(() => {
+    if (!activeTenant) return;
+    getDocuments(activeTenant.id)
+      .then((d) => setRecentDocs(d.slice(0, 4)))
+      .catch(() => setRecentDocs([]));
+  }, [activeTenant]);
 
   useEffect(() => {
-    if (!activeTenant) return;
-    getDocuments(activeTenant.id).then((d) => setRecentDocs(d.slice(0, 4)));
-  }, [activeTenant]);
+    refreshRecent();
+  }, [refreshRecent]);
 
   const startPipeline = useCallback(
     (file: File) => {
+      if (!activeTenant) return;
       setFilename(file.name);
       setStage("uploading");
       setProgress(0);
+      setErrorMsg(null);
+      setTargetDocId(null);
+      setUploadSummary(null);
 
-      const docId = recentDocs[0]?.id ?? null;
-      setTargetDocId(docId);
-
-      const sequence: Stage[] = ["uploading", "parsing", "embedding", "answering", "done"];
-      let i = 0;
-      const tick = () => {
-        if (i >= sequence.length) return;
-        setStage(sequence[i]);
+      // Visual pipeline: advance stage on a timer while the real request flies.
+      const visual: Stage[] = ["uploading", "parsing", "embedding", "answering"];
+      let vi = 0;
+      let stopped = false;
+      const tickStage = () => {
+        if (stopped) return;
+        setStage(visual[vi]);
         let p = 0;
-        const interval = setInterval(() => {
+        const id = setInterval(() => {
+          if (stopped) {
+            clearInterval(id);
+            return;
+          }
           p += 4 + Math.random() * 9;
           setProgress(Math.min(100, p));
           if (p >= 100) {
-            clearInterval(interval);
-            i += 1;
-            if (i < sequence.length) setTimeout(tick, 250);
+            clearInterval(id);
+            vi = Math.min(vi + 1, visual.length - 1);
+            setTimeout(tickStage, 200);
           }
         }, 80);
       };
-      tick();
+      tickStage();
+
+      uploadDocument(file, activeTenant.id)
+        .then((result) => {
+          stopped = true;
+          setTargetDocId(result.document_id);
+          setUploadSummary({ pages: result.page_count, chunks: result.chunk_count });
+          setProgress(100);
+          setStage("done");
+          refreshRecent();
+        })
+        .catch((err: unknown) => {
+          stopped = true;
+          const msg = err instanceof Error ? err.message : String(err);
+          setErrorMsg(msg);
+          setStage("failed");
+        });
     },
-    [recentDocs],
+    [activeTenant, refreshRecent],
   );
 
   const onDrop = useCallback(
@@ -108,6 +140,9 @@ function UploadPage() {
     setStage("idle");
     setProgress(0);
     setFilename(null);
+    setTargetDocId(null);
+    setUploadSummary(null);
+    setErrorMsg(null);
   };
 
   const goReview = () => {
@@ -149,7 +184,7 @@ function UploadPage() {
                   <input
                     ref={inputRef}
                     type="file"
-                    accept=".pdf,.docx,.xlsx"
+                    accept=".pdf"
                     onChange={onPick}
                     className="hidden"
                   />
@@ -158,8 +193,8 @@ function UploadPage() {
                   </div>
                   <h2 className="text-lg font-semibold">Drop your trust package here</h2>
                   <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">
-                    PDF, DOCX, or XLSX. Up to 50 MB. Parsing, embedding, and answer
-                    generation happen automatically.
+                    PDF only for this release. Parsing, embedding, and answer generation happen
+                    automatically on the backend.
                   </p>
                   <button
                     type="button"
@@ -188,11 +223,15 @@ function UploadPage() {
                       <div className="min-w-0">
                         <div className="truncate text-sm font-medium">{filename}</div>
                         <div className="text-xs text-muted-foreground">
-                          {stage === "done" ? "Ready for review" : "Processing…"}
+                          {stage === "done"
+                            ? "Ready for review"
+                            : stage === "failed"
+                              ? "Upload failed"
+                              : "Processing…"}
                         </div>
                       </div>
                     </div>
-                    {stage === "done" ? (
+                    {(stage === "done" || stage === "failed") && (
                       <button
                         type="button"
                         onClick={reset}
@@ -200,7 +239,7 @@ function UploadPage() {
                       >
                         <X className="h-3.5 w-3.5" />
                       </button>
-                    ) : null}
+                    )}
                   </div>
 
                   <ol className="space-y-2">
@@ -260,7 +299,7 @@ function UploadPage() {
                     })}
                   </ol>
 
-                  {stage === "done" && (
+                  {stage === "done" && uploadSummary && (
                     <motion.div
                       initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -269,9 +308,11 @@ function UploadPage() {
                       <div className="flex items-center gap-3">
                         <ShieldCheck className="h-5 w-5 text-verified" />
                         <div>
-                          <div className="text-sm font-medium">12 answers generated · 2 IDK</div>
+                          <div className="text-sm font-medium">
+                            {uploadSummary.pages} pages · {uploadSummary.chunks} chunks indexed
+                          </div>
                           <div className="text-xs text-muted-foreground">
-                            Average confidence 87% · ready for human review
+                            Grounded evidence ready — click to review
                           </div>
                         </div>
                       </div>
@@ -282,6 +323,22 @@ function UploadPage() {
                       >
                         Review answers
                       </button>
+                    </motion.div>
+                  )}
+
+                  {stage === "failed" && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-5 flex items-start gap-3 rounded-xl border border-danger/30 bg-danger/5 px-5 py-4 text-sm"
+                    >
+                      <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-danger" />
+                      <div className="min-w-0">
+                        <div className="font-medium">Upload failed</div>
+                        <div className="mt-0.5 break-words text-xs text-muted-foreground">
+                          {errorMsg ?? "Unknown error"}
+                        </div>
+                      </div>
                     </motion.div>
                   )}
                 </motion.div>
@@ -296,10 +353,10 @@ function UploadPage() {
               </div>
               <ol className="space-y-2.5 text-sm">
                 {[
-                  "PDF is OCR'd and chunked by section.",
-                  "Chunks are embedded and indexed per service.",
-                  "Verifai answers ~120 standard questions.",
-                  "Every answer carries a bounding-box citation.",
+                  "PDF is parsed by PyMuPDF with per-span bounding boxes.",
+                  "Chunks are embedded locally (all-MiniLM-L6-v2) and indexed in ChromaDB.",
+                  "Ask any question — Claude grounds its answer in retrieved spans.",
+                  "Every answer carries a bounding-box citation on the source page.",
                 ].map((line, i) => (
                   <li key={i} className="flex gap-2.5">
                     <span className="font-mono-num mt-0.5 text-[11px] font-medium text-signature">
@@ -327,7 +384,9 @@ function UploadPage() {
                       <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       <div className="min-w-0 flex-1">
                         <div className="truncate font-medium">{d.filename}</div>
-                        <div className="text-muted-foreground">{d.vendor_name}</div>
+                        <div className="text-muted-foreground">
+                          {d.vendor_name} · {d.pages} pages
+                        </div>
                       </div>
                     </li>
                   ))}
